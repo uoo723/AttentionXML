@@ -3,8 +3,8 @@
 DATA=Amazon-3M
 MODEL=FastAttentionXML
 
-./scripts/run_preprocess.sh $DATA
-./scripts/run_xml.sh $DATA $MODEL
+./scripts/run_preprocess.sh $DATA && \
+./scripts/run_xml.sh $DATA $MODEL && \
 
 python evaluation.py \
 --results results/$MODEL-$DATA-Ensemble-labels.npy \
