@@ -191,3 +191,15 @@ venv.bak/
 .mypy_cache/
 
 .idea/
+
+# data
+data/
+
+# vscode
+.vscode/
+
+# model
+models/
+
+# results
+results/
