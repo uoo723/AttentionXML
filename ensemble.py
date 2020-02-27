@@ -18,8 +18,8 @@ from tqdm import tqdm
 def main(prefix, trees):
     labels, scores = [], []
     for i in range(trees):
-        labels.append(np.load(F'{prefix}-Tree-{i}-labels.npy'))
-        scores.append(np.load(F'{prefix}-Tree-{i}-scores.npy'))
+        labels.append(np.load(F'{prefix}-Tree-{i}-labels.npy', allow_pickle=True))
+        scores.append(np.load(F'{prefix}-Tree-{i}-scores.npy', allow_pickle=True))
     ensemble_labels, ensemble_scores = [], []
     for i in tqdm(range(len(labels[0]))):
         s = defaultdict(float)

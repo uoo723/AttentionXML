@@ -49,7 +49,10 @@ def get_word_emb(vec_path, vocab_path=None):
 
 
 def get_data(text_file, label_file=None):
-    return np.load(text_file), np.load(label_file) if label_file is not None else None
+    return (
+        np.load(text_file, allow_pickle=True),
+        np.load(label_file, allow_pickle=True) if label_file is not None else None
+    )
 
 
 def convert_to_binary(text_file, label_file=None, max_len=None, vocab=None, pad='<PAD>', unknown='<UNK>'):

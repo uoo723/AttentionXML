@@ -6,11 +6,11 @@
 * python==3.7.4
 * click==7.0
 * ruamel.yaml==0.16.5
-* numpy==1.16.2
+* numpy==1.18.1
 * scipy==1.3.1
 * scikit-learn==0.21.2
 * gensim==3.4.0
-* torch==1.0.1
+* torch==1.4.0
 * nltk==3.4
 * tqdm==4.31.1
 * joblib==0.13.2
