@@ -36,6 +36,9 @@ class Model(object):
         self.gradient_clip_value, self.gradient_norm_queue = gradient_clip_value, deque([np.inf], maxlen=5)
         self.optimizer = None
 
+        if os.path.exists(model_path):
+            self.load_model()
+
     def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
         self.optimizer.zero_grad()
         self.model.train()
