@@ -86,7 +86,7 @@ def get_mlb(mlb_path, labels=None) -> MultiLabelBinarizer:
 
 def get_sparse_feature(feature_file, label_file):
     sparse_x, _ = load_svmlight_file(feature_file, multilabel=True)
-    return normalize(sparse_x), np.load(label_file) if label_file is not None else None
+    return normalize(sparse_x), np.load(label_file, allow_pickle=True) if label_file is not None else None
 
 
 def output_res(output_path, name, scores, labels):

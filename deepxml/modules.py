@@ -101,7 +101,7 @@ class AttentionWeights(nn.Module):
         for left, right, emb in zip(self.group_offset[:-1], self.group_offset[1:], self.emb):
             index = (left <= inputs) & (inputs < right)
             group_inputs = (inputs[index] - left).to(emb.weight.device)
-            outputs[index] = emb(group_inputs).to(inputs.device)
+            outputs[index] = emb(group_inputs.long()).to(inputs.device)
         return outputs
 
 
@@ -119,7 +119,7 @@ class FastMLAttention(nn.Module):
         masks = torch.unsqueeze(masks, 1)   # N, 1, L
         attn_inputs = inputs.transpose(1, 2)    # N, hidden, L
         attn_weights = self.attention(candidates) if hasattr(self, 'attention') else attn_weights(candidates)
-        attention = (attn_weights @ attn_inputs).masked_fill(1.0 - masks, -np.inf)  # N, sampled_size, L
+        attention = (attn_weights @ attn_inputs).masked_fill(~masks, -np.inf)  # N, sampled_size, L
         attention = F.softmax(attention, -1)    # N, sampled_size, L
         return attention @ inputs   # N, sampled_size, hidden_size
 

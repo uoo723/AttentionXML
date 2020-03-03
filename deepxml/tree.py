@@ -62,7 +62,7 @@ class FastAttentionXML(object):
         if level == 0:
             while not os.path.exists(F'{self.groups_path}-Level-{level}.npy'):
                 time.sleep(30)
-            groups = np.load(F'{self.groups_path}-Level-{level}.npy')
+            groups = np.load(F'{self.groups_path}-Level-{level}.npy', allow_pickle=True)
             train_y, valid_y = self.get_mapping_y(groups, self.labels_num, train_y, valid_y)
             labels_num = len(groups)
             train_loader = DataLoader(MultiLabelDataset(train_x, train_y),
@@ -112,12 +112,12 @@ class FastAttentionXML(object):
             if level < self.level - 1:
                 while not os.path.exists(F'{self.groups_path}-Level-{level}.npy'):
                     time.sleep(30)
-                groups = np.load(F'{self.groups_path}-Level-{level}.npy')
+                groups = np.load(F'{self.groups_path}-Level-{level}.npy', allow_pickle=True)
                 train_y, valid_y = self.get_mapping_y(groups, self.labels_num, train_y, valid_y)
                 labels_num, last_groups = len(groups), self.get_inter_groups(len(groups))
             else:
                 groups, labels_num = None, train_y.shape[1]
-                last_groups = np.load(F'{self.groups_path}-Level-{level-1}.npy')
+                last_groups = np.load(F'{self.groups_path}-Level-{level-1}.npy', allow_pickle=True)
 
             train_loader = DataLoader(XMLDataset(train_x, train_y, labels_num=labels_num,
                                                  groups=last_groups, group_labels=group_candidates),
@@ -169,7 +169,7 @@ class FastAttentionXML(object):
             return model.predict(test_loader, k=k)
         else:
             if level == self.level - 1:
-                groups = np.load(F'{self.groups_path}-Level-{level-1}.npy')
+                groups = np.load(F'{self.groups_path}-Level-{level-1}.npy', allow_pickle=True)
             else:
                 groups = self.get_inter_groups(labels_num)
             group_scores, group_labels = self.predict_level(level - 1, test_x, self.top, len(groups))
