@@ -28,7 +28,8 @@ class Model(object):
     """
 
     """
-    def __init__(self, network, model_path, gradient_clip_value=5.0, device_ids=None, **kwargs):
+    def __init__(self, network, model_path, gradient_clip_value=5.0, device_ids=None,
+                 load_model=False, **kwargs):
         self.model = nn.DataParallel(network(**kwargs).cuda(), device_ids=device_ids)
         self.loss_fn = nn.BCEWithLogitsLoss()
         self.model_path, self.state = model_path, {}
@@ -36,8 +37,8 @@ class Model(object):
         self.gradient_clip_value, self.gradient_norm_queue = gradient_clip_value, deque([np.inf], maxlen=5)
         self.optimizer = None
 
-       # if os.path.exists(model_path):
-       #     self.load_model()
+        if load_model and os.path.exists(model_path):
+           self.load_model()
 
     def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
         self.optimizer.zero_grad()
