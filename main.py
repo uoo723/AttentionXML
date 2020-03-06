@@ -27,12 +27,13 @@ from deepxml.networks import AttentionRNN
 @click.option('-m', '--model-cnf', type=click.Path(exists=True), help='Path of model configure yaml.')
 @click.option('--mode', type=click.Choice(['train', 'eval']), default=None)
 @click.option('-t', '--tree-id', type=click.INT, default=None)
-def main(data_cnf, model_cnf, mode, tree_id):
+@click.option('-s', '--output-suffix', type=click.STRING, default='', help='suffix of output name')
+def main(data_cnf, model_cnf, mode, tree_id, output_suffix):
     tree_id = F'-Tree-{tree_id}' if tree_id is not None else ''
     yaml = YAML(typ='safe')
     data_cnf, model_cnf = yaml.load(Path(data_cnf)), yaml.load(Path(model_cnf))
     model, model_name, data_name = None, model_cnf['name'], data_cnf['name']
-    model_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}')
+    model_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}{output_suffix}')
     emb_init = get_word_emb(data_cnf['embedding']['emb_init'])
     logger.info(F'Model Name: {model_name}')
 
@@ -88,7 +89,7 @@ def main(data_cnf, model_cnf, mode, tree_id):
             scores, labels = model.predict(test_x)
         logger.info('Finish Predicting')
         labels = mlb.classes_[labels]
-        output_res(data_cnf['output']['res'], F'{model_name}-{data_name}{tree_id}', scores, labels)
+        output_res(data_cnf['output']['res'], F'{model_name}-{data_name}{tree_id}{output_suffix}', scores, labels)
 
 
 if __name__ == '__main__':

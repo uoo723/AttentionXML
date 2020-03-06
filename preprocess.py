@@ -35,10 +35,11 @@ def tokenize(sentence: str, sep='/SEP/'):
 @click.option('--max-len', type=click.INT, default=500, help='Truncated length.')
 def main(text_path, tokenized_path, label_path, vocab_path, emb_path, w2v_model, vocab_size, max_len):
     if tokenized_path is not None:
-        logger.info(F'Tokenizing Text. {text_path}')
-        with open(text_path) as fp, open(tokenized_path, 'w') as fout:
-            for line in tqdm(fp, desc='Tokenizing'):
-                print(*tokenize(line), file=fout)
+        if not os.path.exists(tokenized_path):
+            logger.info(F'Tokenizing Text. {text_path}')
+            with open(text_path) as fp, open(tokenized_path, 'w') as fout:
+                for line in tqdm(fp, desc='Tokenizing'):
+                    print(*tokenize(line), file=fout)
         text_path = tokenized_path
 
     if not os.path.exists(vocab_path):
@@ -53,10 +54,10 @@ def main(text_path, tokenized_path, label_path, vocab_path, emb_path, w2v_model,
     logger.info(F'Getting Dataset: {text_path} Max Length: {max_len}')
     texts, labels = convert_to_binary(text_path, label_path, max_len, vocab)
     logger.info(F'Size of Samples: {len(texts)}')
-    np.save(os.path.splitext(text_path)[0], texts)
-    if labels is not None:
+    np.save(f"{os.path.splitext(text_path)[0]}_{max_len}L", texts)
+    if labels is not None and not os.path.exists(label_path):
         assert len(texts) == len(labels)
-        np.save(os.path.splitext(label_path)[0], labels)
+        np.save(f"{os.path.splitext(label_path)[0]}", labels)
 
 
 if __name__ == '__main__':
