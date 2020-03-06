@@ -9,5 +9,5 @@ SUFFIX='1000L'
 
 python evaluation.py \
 --results results/$MODEL-$DATA-Ensemble-labels-$SUFFIX.npy \
---targets data/$DATA/test_labels_$SUFFIX.npy \
---train-labels data/$DATA/train_labels_$SUFFIX.npy
+--targets data/$DATA/test_labels.npy \
+--train-labels data/$DATA/train_labels.npy

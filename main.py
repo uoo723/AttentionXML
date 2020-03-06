@@ -89,7 +89,8 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix):
             scores, labels = model.predict(test_x)
         logger.info('Finish Predicting')
         labels = mlb.classes_[labels]
-        output_res(data_cnf['output']['res'], F'{model_name}-{data_name}{tree_id}{output_suffix}', scores, labels)
+        output_res(data_cnf['output']['res'], F'{model_name}-{data_name}{tree_id}',
+                   scores, labels, output_suffix)
 
 
 if __name__ == '__main__':

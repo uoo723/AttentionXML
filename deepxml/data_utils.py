@@ -89,7 +89,7 @@ def get_sparse_feature(feature_file, label_file):
     return normalize(sparse_x), np.load(label_file, allow_pickle=True) if label_file is not None else None
 
 
-def output_res(output_path, name, scores, labels):
+def output_res(output_path, name, scores, labels, suffix=''):
     os.makedirs(output_path, exist_ok=True)
-    np.save(os.path.join(output_path, F'{name}-scores'), scores)
-    np.save(os.path.join(output_path, F'{name}-labels'), labels)
+    np.save(os.path.join(output_path, F'{name}-scores{suffix}'), scores)
+    np.save(os.path.join(output_path, F'{name}-labels{suffix}'), labels)
