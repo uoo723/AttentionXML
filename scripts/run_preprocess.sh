@@ -9,12 +9,13 @@ else
 fi
 
 if [ $2 ]; then
+  MAX_LEN="--max-len $(expr match $2 '\([0-9]*\)L')"
   SUFFIX="_$2"
 fi
 
 if [ ! -f data/$1/train_texts$SUFFIX.npy ]; then
-  python preprocess.py $TRAIN_TEXT --label-path data/$1/train_labels.txt --vocab-path data/$1/vocab.npy --emb-path data/$1/emb_init.npy --w2v-model data/glove.840B.300d.gensim --max-len 1000
+  python preprocess.py $TRAIN_TEXT --label-path data/$1/train_labels.txt --vocab-path data/$1/vocab.npy --emb-path data/$1/emb_init.npy --w2v-model data/glove.840B.300d.gensim $MAX_LEN
 fi
 if [ ! -f data/$1/test_texts$SUFFIX.npy ]; then
-  python preprocess.py $TEST_TEXT --label-path data/$1/test_labels.txt --vocab-path data/$1/vocab.npy --max-len 1000
+  python preprocess.py $TEST_TEXT --label-path data/$1/test_labels.txt --vocab-path data/$1/vocab.npy $MAX_LEN
 fi

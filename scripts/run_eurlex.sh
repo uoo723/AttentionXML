@@ -2,7 +2,7 @@
 
 DATA=EUR-Lex
 MODEL=AttentionXML
-SUFFIX='1000L'
+SUFFIX=1000L
 
 ./scripts/run_preprocess.sh $DATA $SUFFIX && \
 ./scripts/run_xml.sh $DATA $MODEL $SUFFIX && \
