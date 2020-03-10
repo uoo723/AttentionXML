@@ -14,13 +14,14 @@ from tqdm import tqdm
 
 @click.command()
 @click.option('-p', '--prefix', help='Prefix of results.')
+@click.option('-i', '--input-suffix', default='', help='Suffix of input')
 @click.option('-s', '--suffix', default='', help='Suffix of results')
 @click.option('-t', '--trees', type=click.INT, help='The number of results using for ensemble.')
-def main(prefix, suffix, trees):
+def main(prefix, input_suffix, suffix, trees):
     labels, scores = [], []
     for i in range(trees):
-        labels.append(np.load(F'{prefix}-Tree-{i}-labels{suffix}.npy', allow_pickle=True))
-        scores.append(np.load(F'{prefix}-Tree-{i}-scores{suffix}.npy', allow_pickle=True))
+        labels.append(np.load(F'{prefix}-Tree-{i}-labels{input_suffix}.npy', allow_pickle=True))
+        scores.append(np.load(F'{prefix}-Tree-{i}-scores{input_suffix}.npy', allow_pickle=True))
     ensemble_labels, ensemble_scores = [], []
     for i in tqdm(range(len(labels[0]))):
         s = defaultdict(float)

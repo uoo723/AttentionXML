@@ -8,7 +8,7 @@ else
   TEST_TEXT="--text-path data/$1/test_raw_texts.txt --tokenized-path data/$1/test_texts.txt"
 fi
 
-if [ $2 ]; then
+if [[ $2 =~ "[0-9]+L" ]]; then
   MAX_LEN="--max-len $(expr match $2 '\([0-9]*\)L')"
   SUFFIX="_$2"
 fi
