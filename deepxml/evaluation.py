@@ -10,6 +10,7 @@ import numpy as np
 from functools import partial
 from scipy.sparse import csr_matrix
 from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics import recall_score, f1_score
 from typing import Union, Optional, List, Iterable, Hashable
 
 
@@ -17,7 +18,9 @@ __all__ = ['get_precision', 'get_p_1', 'get_p_3', 'get_p_5', 'get_p_10',
            'get_ndcg', 'get_n_1', 'get_n_3', 'get_n_5', 'get_n_10',
            'get_inv_propensity', 'get_psp',
            'get_psp_1', 'get_psp_3', 'get_psp_5', 'get_psp_10',
-           'get_psndcg_1', 'get_psndcg_3', 'get_psndcg_5', 'get_psndcg_10']
+           'get_psndcg_1', 'get_psndcg_3', 'get_psndcg_5', 'get_psndcg_10',
+           'get_recall', 'get_r_1', 'get_r_3', 'get_r_5', 'get_r_10',
+           'get_f1', 'get_f_1', 'get_f_3', 'get_f_5', 'get_f_10']
 
 TPredict = np.ndarray
 TTarget = Union[Iterable[Iterable[Hashable]], csr_matrix]
@@ -68,6 +71,34 @@ get_n_1 = partial(get_ndcg, top=1)
 get_n_3 = partial(get_ndcg, top=3)
 get_n_5 = partial(get_ndcg, top=5)
 get_n_10 = partial(get_ndcg, top=10)
+
+
+def get_recall(prediction: TPredict, targets: TTarget, mlb: TMlb = None, classes: TClass = None, top=5):
+    mlb = get_mlb(classes, mlb, targets)
+    if not isinstance(targets, csr_matrix):
+        targets = mlb.transform(targets)
+    prediction = mlb.transform(prediction[:, :top])
+    return recall_score(targets, prediction, average="samples")
+
+
+get_r_1 = partial(get_recall, top=1)
+get_r_3 = partial(get_recall, top=3)
+get_r_5 = partial(get_recall, top=5)
+get_r_10 = partial(get_recall, top=10)
+
+
+def get_f1(prediction: TPredict, targets: TTarget, mlb: TMlb = None, classes: TClass = None, top=5):
+    mlb = get_mlb(classes, mlb, targets)
+    if not isinstance(targets, csr_matrix):
+        targets = mlb.transform(targets)
+    prediction = mlb.transform(prediction[:, :top])
+    return f1_score(targets, prediction, average="samples")
+
+
+get_f_1 = partial(get_f1, top=1)
+get_f_3 = partial(get_f1, top=3)
+get_f_5 = partial(get_f1, top=5)
+get_f_10 = partial(get_f1, top=10)
 
 
 def get_inv_propensity(train_y: csr_matrix, a=0.55, b=1.5):
