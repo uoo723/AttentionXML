@@ -193,13 +193,13 @@ venv.bak/
 .idea/
 
 # data
-data/
+/data/
 
 # vscode
 .vscode/
 
 # model
-models/
+/models/
 
 # results
-results/
+/results/
