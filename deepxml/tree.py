@@ -38,6 +38,7 @@ class FastAttentionXML(object):
         self.labels_num, self.models = labels_num, {}
         self.inter_group_size, self.top = model_cnf['k'], model_cnf['top']
         self.groups_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}-cluster')
+        self.load_model = model_cnf['model'].get('load_model', False)
 
     @staticmethod
     def get_mapping_y(groups, labels_num, *args):
@@ -71,7 +72,7 @@ class FastAttentionXML(object):
                                       model_cnf['valid']['batch_size'], num_workers=4)
             model = Model(AttentionRNN, labels_num=labels_num, model_path=F'{self.model_path}-Level-{level}',
                           emb_init=self.emb_init, **data_cnf['model'], **model_cnf['model'])
-            if not os.path.exists(model.model_path):
+            if self.load_model or not os.path.exists(model.model_path):
                 logger.info(F'Training Level-{level}, Number of Labels: {labels_num}')
                 model.train(train_loader, valid_loader, **model_cnf['train'][level])
                 model.optimizer = None
@@ -129,12 +130,17 @@ class FastAttentionXML(object):
                                       model_cnf['valid']['batch_size'], num_workers=4)
             model = XMLModel(network=FastAttentionRNN, labels_num=labels_num, emb_init=self.emb_init,
                              model_path=F'{self.model_path}-Level-{level}', **data_cnf['model'], **model_cnf['model'])
-            if not os.path.exists(model.model_path):
-                logger.info(F'Loading parameters of Level-{level} from Level-{level-1}')
+            if self.load_model or not os.path.exists(model.model_path):
                 last_model = self.get_last_models(level - 1)
-                model.network.module.emb.load_state_dict(last_model.module.emb.state_dict())
-                model.network.module.lstm.load_state_dict(last_model.module.lstm.state_dict())
-                model.network.module.linear.load_state_dict(last_model.module.linear.state_dict())
+
+                if not self.load_model:
+                    logger.info(F'Loading parameters of Level-{level} from Level-{level-1}')
+                    model.network.module.emb.load_state_dict(last_model.module.emb.state_dict())
+                    model.network.module.lstm.load_state_dict(last_model.module.lstm.state_dict())
+                    model.network.module.linear.load_state_dict(last_model.module.linear.state_dict())
+                else:
+                    logger.info(f'Loading parameters of Level-{level} from saved model')
+
                 logger.info(F'Training Level-{level}, '
                             F'Number of Labels: {labels_num}, '
                             F'Candidates Number: {train_loader.dataset.candidates_num}')

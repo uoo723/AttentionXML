@@ -142,13 +142,17 @@ class XMLModel(Model):
     def __init__(self, labels_num, hidden_size, device_ids=None, attn_device_ids=None,
                  most_labels_parallel_attn=80000, **kwargs):
         parallel_attn = labels_num <= most_labels_parallel_attn
+        load_model = kwargs.pop('load_model', False)
         super(XMLModel, self).__init__(hidden_size=hidden_size, device_ids=device_ids, labels_num=labels_num,
-                                       parallel_attn=parallel_attn, **kwargs)
+                                       parallel_attn=parallel_attn, load_model=False, **kwargs)
         self.network, self.attn_weights = self.model, nn.Sequential()
         if not parallel_attn:
             self.attn_weights = AttentionWeights(labels_num, hidden_size*2, attn_device_ids)
         self.model = nn.ModuleDict({'Network': self.network.module, 'AttentionWeights': self.attn_weights})
         self.state['best'] = {}
+
+        if load_model:
+            self.load_model()
 
     def train_step(self, train_x: Tuple[torch.Tensor, torch.Tensor], train_y: torch.Tensor):
         self.optimizer.zero_grad()
