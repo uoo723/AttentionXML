@@ -203,3 +203,10 @@ venv.bak/
 
 # results
 /results/
+
+best/
+misc/
+original/
+img/
+*.ipynb
+*.bak.*
