@@ -7,26 +7,63 @@ Created on 2018/12/24
 """
 
 import os
+
 import numpy as np
-from scipy.sparse import csr_matrix, csc_matrix
-from sklearn.preprocessing import normalize
 from logzero import logger
+from scipy.sparse import csc_matrix, csr_matrix
+from sklearn.preprocessing import normalize
 
-from deepxml.data_utils import get_sparse_feature
-
+from deepxml.data_utils import get_data, get_sparse_feature, get_word_emb
 
 __all__ = ['build_tree_by_level']
 
 
-def build_tree_by_level(sparse_data_x, sparse_data_y, mlb, eps: float, max_leaf: int, levels: list, groups_path):
+def _get_labels_f(emb_init, train_x, train_y):
+    labels_f = np.zeros((train_y.shape[1], emb_init.shape[1]))
+    labels_cnt = np.zeros(train_y.shape[1], np.int32)
+
+    for i, labels in enumerate(train_y):
+        indices = np.argwhere(labels == 1)[:, 1]
+        for index in indices:
+            word_cnt = np.count_nonzero(train_x[i])
+            labels_f[index] += np.sum(emb_init[train_x[i]], axis=0)
+            labels_cnt[index] += word_cnt
+
+    labels_f = labels_f / labels_cnt[:, None]
+    return labels_f
+
+
+def build_tree_by_level(
+    sparse_data_x,
+    sparse_data_y,
+    train_x: str,
+    emb_init: str,
+    mlb,
+    eps: float,
+    max_leaf: int,
+    levels: list,
+    label_emb: str,
+    groups_path,
+):
     os.makedirs(os.path.split(groups_path)[0], exist_ok=True)
     logger.info('Clustering')
-    sparse_x, sparse_labels = get_sparse_feature(sparse_data_x, sparse_data_y)
-    sparse_y = mlb.transform(sparse_labels)
     logger.info('Getting Labels Feature')
-    labels_f = normalize(csr_matrix(sparse_y.T) @ csc_matrix(sparse_x))
+
+    if label_emb == 'tf-idf':
+        sparse_x, sparse_labels = get_sparse_feature(sparse_data_x, sparse_data_y)
+        sparse_y = mlb.transform(sparse_labels)
+        labels_f = normalize(csr_matrix(sparse_y.T) @ csc_matrix(sparse_x))
+
+    elif label_emb == 'glove':
+        emb_init = get_word_emb(emb_init)
+        train_x, train_y = get_data(train_x, sparse_data_y)
+        train_y = mlb.transform(train_y)
+        labels_f = _get_labels_f(emb_init, train_x, train_y)
+
     logger.info(F'Start Clustering {levels}')
+
     levels, q = [2**x for x in levels], None
+
     for i in range(len(levels)-1, -1, -1):
         if os.path.exists(F'{groups_path}-Level-{i}.npy'):
             labels_list = np.load(F'{groups_path}-Level-{i}.npy', allow_pickle=True)
@@ -54,8 +91,15 @@ def build_tree_by_level(sparse_data_x, sparse_data_y, mlb, eps: float, max_leaf:
 def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float):
     n = len(labels_i)
     c1, c2 = np.random.choice(np.arange(n), 2, replace=False)
-    centers, old_dis, new_dis = labels_f[[c1, c2]].toarray(), -10000.0, -1.0
+    old_dis, new_dis = -10000.0, -1.0
+
+    if type(labels_f) == csr_matrix:
+        centers = labels_f[[c1, c2]].toarray()
+    else:
+        centers = labels_f[[c1, c2]]
+
     l_labels_i, r_labels_i = None, None
+
     while new_dis - old_dis >= eps:
         dis = labels_f @ centers.T  # N, 2
         partition = np.argsort(dis[:, 1] - dis[:, 0])

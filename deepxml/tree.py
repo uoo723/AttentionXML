@@ -198,7 +198,11 @@ class FastAttentionXML(object):
     def train(self, train_x, train_y, valid_x, valid_y, mlb):
         self.model_cnf['cluster']['groups_path'] = self.groups_path
         cluster_process = Process(target=build_tree_by_level,
-                                  args=(self.data_cnf['train']['sparse'], self.data_cnf['train']['labels'], mlb),
+                                  args=(self.data_cnf['train']['sparse'],
+                                        self.data_cnf['train']['labels'],
+                                        self.data_cnf['train']['texts'],
+                                        self.data_cnf['embedding']['emb_init'],
+                                        mlb),
                                   kwargs=self.model_cnf['cluster'])
         cluster_process.start()
         self.train_level(self.level - 1, train_x, train_y, valid_x, valid_y)
