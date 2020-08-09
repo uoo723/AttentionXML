@@ -30,14 +30,14 @@ class FastAttentionXML(object):
     """
 
     """
-    def __init__(self, labels_num, data_cnf, model_cnf, tree_id=''):
+    def __init__(self, labels_num, data_cnf, model_cnf, tree_id='', suffix=''):
         self.data_cnf, self.model_cnf = data_cnf.copy(), model_cnf.copy()
         model_name, data_name = model_cnf['name'], data_cnf['name']
-        self.model_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}')
+        self.model_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}{suffix}')
         self.emb_init, self.level = get_word_emb(data_cnf['embedding']['emb_init']), model_cnf['level']
         self.labels_num, self.models = labels_num, {}
         self.inter_group_size, self.top = model_cnf['k'], model_cnf['top']
-        self.groups_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}-cluster')
+        self.groups_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}{suffix}-cluster')
         self.load_model = model_cnf['model'].get('load_model', False)
 
     @staticmethod

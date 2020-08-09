@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 
 DATA=EUR-Lex
-MODEL=AttentionXML
+MODEL=FastAttentionXML
 #SUFFIX=300L
-SUFFIX=5
+SUFFIX1=
+SUFFIX2=random
 
-./scripts/run_preprocess.sh $DATA $SUFFIX && \
-./scripts/run_xml.sh $DATA $MODEL $SUFFIX && \
+
+./scripts/run_preprocess.sh $DATA $SUFFIX1 && \
+./scripts/run_xml.sh $DATA $MODEL $SUFFIX2 && \
 
 python evaluation.py \
---results results/$MODEL-$DATA-Ensemble-labels${SUFFIX:+-$SUFFIX}.npy \
+--results results/$MODEL-$DATA-Tree-0-labels${SUFFIX2:+-$SUFFIX2}.npy \
 --targets data/$DATA/test_labels.npy \
 --train-labels data/$DATA/train_labels.npy

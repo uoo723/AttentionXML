@@ -43,6 +43,7 @@ def build_tree_by_level(
     max_leaf: int,
     levels: list,
     label_emb: str,
+    alg: str,
     groups_path,
 ):
     os.makedirs(os.path.split(groups_path)[0], exist_ok=True)
@@ -83,13 +84,21 @@ def build_tree_by_level(
         next_q = []
         for node_i, node_f in q:
             if len(node_i) > max_leaf:
-                next_q += list(split_node(node_i, node_f, eps))
+                next_q += list(split_node(node_i, node_f, eps, alg == 'random'))
         q = next_q
     logger.info('Finish Clustering')
 
 
-def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float):
+def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
+               random: bool = False):
     n = len(labels_i)
+
+    if random:
+        partition = np.random.permutation(n)
+        l_labels_i, r_labels_i = partition[:n//2], partition[n//2:]
+
+        return (labels_i[l_labels_i], labels_f[l_labels_i]), (labels_i[r_labels_i], labels_f[r_labels_i])
+
     c1, c2 = np.random.choice(np.arange(n), 2, replace=False)
     old_dis, new_dis = -10000.0, -1.0
 

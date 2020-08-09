@@ -64,7 +64,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix):
                           **data_cnf['model'], **model_cnf['model'])
             model.train(train_loader, valid_loader, **model_cnf['train'])
         else:
-            model = FastAttentionXML(labels_num, data_cnf, model_cnf, tree_id)
+            model = FastAttentionXML(labels_num, data_cnf, model_cnf, tree_id, output_suffix)
             model.train(train_x, train_y, valid_x, valid_y, mlb)
         logger.info('Finish Training')
 
@@ -85,7 +85,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix):
             scores, labels = model.predict(test_loader, k=model_cnf['predict'].get('k', 100))
         else:
             if model is None:
-                model = FastAttentionXML(labels_num, data_cnf, model_cnf, tree_id)
+                model = FastAttentionXML(labels_num, data_cnf, model_cnf, tree_id, output_suffix)
             scores, labels = model.predict(test_x)
         logger.info('Finish Predicting')
         labels = mlb.classes_[labels]

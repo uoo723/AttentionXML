@@ -28,6 +28,7 @@ def main(results, targets, train_labels, a, b):
     targets = mlb.fit_transform(targets)
     print('Precision@1,3,5:', get_p_1(res, targets, mlb), get_p_3(res, targets, mlb), get_p_5(res, targets, mlb))
     print('nDCG@1,3,5:', get_n_1(res, targets, mlb), get_n_3(res, targets, mlb), get_n_5(res, targets, mlb))
+    print('Recall@1,3,5:', get_r_1(res, targets, mlb), get_r_3(res, targets, mlb), get_r_5(res, targets, mlb))
     if train_labels is not None:
         train_labels = np.load(train_labels, allow_pickle=True)
         inv_w = get_inv_propensity(mlb.transform(train_labels), a, b)
