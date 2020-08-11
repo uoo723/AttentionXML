@@ -4,7 +4,7 @@ if [[ $3 =~ "[0-9]+L" ]]; then
   SUFFIX="-s -$3"
   INPUT_SUFFIX="-i -$3"
 elif [ $3 ]; then
-  SUFFIX2="-s -$3"
+  SUFFIX="-s -$3"
 fi
 
 python main.py --data-cnf configure/datasets/$1.yaml --model-cnf configure/models/$2-$1.yaml -t 0 $SUFFIX && \
