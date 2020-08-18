@@ -1,0 +1,14 @@
+version: '3'
+services:
+  samba:
+    image: dperson/samba
+    ports:
+      - 139:139
+      - 445:445
+    volumes:
+      - ../:/mount
+      - ./configure/samba:/etc/samba:ro
+    environment:
+      - TZ=Asia/Seoul
+      - USER=attention-xml;attention-xml;${UID};attention-xml;${GID}
+    command: ['-p']

@@ -1,6 +1,7 @@
 name: Wiki10-31K
 
 train:
+  sparse: data/Wiki10-31K/train.txt
   texts: data/Wiki10-31K/train_texts.npy
   labels: data/Wiki10-31K/train_labels.npy
 

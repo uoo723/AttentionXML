@@ -8,6 +8,10 @@ Created on 2018/12/9
 
 import os
 import click
+
+import mlflow
+import mlflow.pytorch
+
 import numpy as np
 from pathlib import Path
 from ruamel.yaml import YAML
@@ -31,6 +35,10 @@ from deepxml.networks import AttentionRNN
 def main(data_cnf, model_cnf, mode, tree_id, output_suffix):
     tree_id = F'-Tree-{tree_id}' if tree_id is not None else ''
     yaml = YAML(typ='safe')
+
+    data_cnf_path = data_cnf
+    model_cnf_path = model_cnf
+
     data_cnf, model_cnf = yaml.load(Path(data_cnf)), yaml.load(Path(model_cnf))
     model, model_name, data_name = None, model_cnf['name'], data_cnf['name']
     model_path = os.path.join(model_cnf['path'], F'{model_name}-{data_name}{tree_id}{output_suffix}')
@@ -62,11 +70,16 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix):
                                       model_cnf['valid']['batch_size'], num_workers=4)
             model = Model(network=AttentionRNN, labels_num=labels_num, model_path=model_path, emb_init=emb_init,
                           **data_cnf['model'], **model_cnf['model'])
+
+            # mlflow.pytorch.log_model(model.model.module, 'model')
             model.train(train_loader, valid_loader, **model_cnf['train'])
         else:
             model = FastAttentionXML(labels_num, data_cnf, model_cnf, tree_id, output_suffix)
             model.train(train_x, train_y, valid_x, valid_y, mlb)
         logger.info('Finish Training')
+
+        mlflow.log_artifact(data_cnf_path, 'config')
+        mlflow.log_artifact(model_cnf_path, 'config')
 
     if mode is None or mode == 'eval':
         logger.info('Loading Test Set')
@@ -89,8 +102,17 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix):
             scores, labels = model.predict(test_x)
         logger.info('Finish Predicting')
         labels = mlb.classes_[labels]
-        output_res(data_cnf['output']['res'], F'{model_name}-{data_name}{tree_id}',
-                   scores, labels, output_suffix)
+        score_path, label_path = output_res(data_cnf['output']['res'],
+                                            f'{model_name}-{data_name}{tree_id}',
+                                            scores, labels, output_suffix)
+
+        if mode is None:
+            mlflow.log_artifact(score_path, 'results')
+            mlflow.log_artifact(label_path, 'results')
+
+
+    with open('run_id.txt', 'w') as f:
+        f.write(mlflow.active_run().info.run_id)
 
 
 if __name__ == '__main__':

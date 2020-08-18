@@ -1,0 +1,37 @@
+# 1.03h x 6 on RTX 2080 Ti x 2
+name: FastAttentionXML
+
+level: 2
+k: 4
+top: 100
+
+model:
+  hidden_size: 512
+  layers_num: 1
+  linear_size: [512, 256]
+  dropout: 0.5
+  # emb_trainable: False
+  # load_model: true
+
+cluster:
+  max_leaf: 4
+  eps: 1e-4
+  levels: [10]
+  label_emb: tf-idf
+  alg: random
+
+train:
+  - batch_size: 40
+    nb_epoch: 40
+    swa_warmup: 6
+  - batch_size: 40
+    nb_epoch: 40
+    swa_warmup: 2
+
+valid:
+  batch_size: 200
+
+predict:
+  batch_size: 200
+
+path: models

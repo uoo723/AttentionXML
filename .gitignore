@@ -210,3 +210,5 @@ original/
 img/
 *.ipynb
 *.bak.*
+
+run_id.txt

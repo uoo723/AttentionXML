@@ -91,5 +91,8 @@ def get_sparse_feature(feature_file, label_file):
 
 def output_res(output_path, name, scores, labels, suffix=''):
     os.makedirs(output_path, exist_ok=True)
-    np.save(os.path.join(output_path, F'{name}-scores{suffix}'), scores)
-    np.save(os.path.join(output_path, F'{name}-labels{suffix}'), labels)
+    score_path = os.path.join(output_path, f'{name}-scores{suffix}.npy')
+    label_path = os.path.join(output_path, f'{name}-labels{suffix}.npy')
+    np.save(score_path, scores)
+    np.save(label_path, labels)
+    return score_path, label_path

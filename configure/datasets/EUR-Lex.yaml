@@ -1,6 +1,7 @@
 name: EUR-Lex
 
 train:
+  sparse: data/EUR-Lex/train.txt
   texts: data/EUR-Lex/train_texts.npy
   labels: data/EUR-Lex/train_labels.npy
 

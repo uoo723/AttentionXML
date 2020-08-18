@@ -1,0 +1,35 @@
+name: FastAttentionXML
+
+level: 2
+k: 4
+top: 160
+
+model:
+  hidden_size: 256
+  layers_num: 1
+  linear_size: [256]
+  dropout: 0.5
+  # emb_trainable: False
+
+cluster:
+  max_leaf: 8
+  eps: 1e-4
+  levels: [12]
+  label_emb: tf-idf
+  alg: random
+
+train:
+  - batch_size: 40
+    nb_epoch: 40
+    swa_warmup: 6
+  - batch_size: 40
+    nb_epoch: 40
+    swa_warmup: 4
+
+valid:
+  batch_size: 100
+
+predict:
+  batch_size: 100
+
+path: models
