@@ -21,3 +21,6 @@ labels_binarizer: data/EUR-Lex/labels_binarizer
 
 model:
   emb_size: 300
+
+
+split_head_tail: 0.05

@@ -1,3 +1,4 @@
+# 0.47h x 3 on RTX 2080 Ti
 name: AttentionXML
 
 model:
@@ -6,6 +7,7 @@ model:
   linear_size: [256]
   dropout: 0.5
   emb_trainable: False
+  # load_model: true
 
 train:
   batch_size: 40
@@ -17,5 +19,7 @@ valid:
 
 predict:
   batch_size: 40
+  top_head_k: 30
+  top_tail_k: 70
 
 path: models

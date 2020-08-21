@@ -14,7 +14,7 @@ from sklearn.preprocessing import MultiLabelBinarizer, normalize
 from sklearn.datasets import load_svmlight_file
 from gensim.models import KeyedVectors
 from tqdm import tqdm
-from typing import Union, Iterable
+from typing import Union, Iterable, Tuple
 
 
 __all__ = ['build_vocab', 'get_data', 'convert_to_binary', 'truncate_text', 'get_word_emb', 'get_mlb',
@@ -96,3 +96,44 @@ def output_res(output_path, name, scores, labels, suffix=''):
     np.save(score_path, scores)
     np.save(label_path, labels)
     return score_path, label_path
+
+
+def get_head_tail_labels(
+    labels: np.ndarray,
+    ratio: float,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    label_cnt = Counter(label for y in labels for label in y)
+    head_labels = set(map(lambda x: x[0],
+                          label_cnt.most_common(int(len(label_cnt) * 0.05))))
+    tail_labels = set(label_cnt.keys()) - head_labels
+
+    head_labels = np.array(list(head_labels))
+    tail_labels = np.array(list(tail_labels))
+
+    head_labels_i, tail_labels_i = get_head_tail_samples(
+        head_labels, tail_labels, labels,
+    )
+
+    return head_labels, head_labels_i, tail_labels, tail_labels_i
+
+
+def get_head_tail_samples(
+    head_labels: np.ndarray,
+    tail_labels: np.ndarray,
+    labels: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    head_labels_i = set()
+    tail_labels_i = set()
+
+    for i, y in enumerate(labels):
+        for label in y:
+            if label in head_labels:
+                head_labels_i.add(i)
+
+            if label in tail_labels:
+                tail_labels_i.add(i)
+
+    head_labels_i = np.array(list(head_labels_i))
+    tail_labels_i = np.array(list(tail_labels_i))
+
+    return head_labels_i, tail_labels_i
