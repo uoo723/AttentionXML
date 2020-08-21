@@ -9,6 +9,9 @@ Created on 2018/12/9
 import os
 import numpy as np
 import joblib
+import scipy as sp
+import torch
+
 from collections import Counter
 from sklearn.preprocessing import MultiLabelBinarizer, normalize
 from sklearn.datasets import load_svmlight_file
@@ -104,7 +107,7 @@ def get_head_tail_labels(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     label_cnt = Counter(label for y in labels for label in y)
     head_labels = set(map(lambda x: x[0],
-                          label_cnt.most_common(int(len(label_cnt) * 0.05))))
+                          label_cnt.most_common(int(len(label_cnt) * ratio))))
     tail_labels = set(label_cnt.keys()) - head_labels
 
     head_labels = np.array(list(head_labels))
@@ -137,3 +140,25 @@ def get_head_tail_samples(
     tail_labels_i = np.array(list(tail_labels_i))
 
     return head_labels_i, tail_labels_i
+
+
+# https://github.com/tkipf/pygcn/blob/master/pygcn/utils.py
+def normalize(mx):
+    """Row-normalize sparse matrix"""
+    rowsum = np.array(mx.sum(1))
+    r_inv = np.power(rowsum, -1).flatten()
+    r_inv[np.isinf(r_inv)] = 0.
+    r_mat_inv = sp.sparse.diags(r_inv)
+    mx = r_mat_inv.dot(mx)
+    return mx
+
+
+# https://github.com/tkipf/pygcn/blob/master/pygcn/utils.py
+def sparse_mx_to_torch_sparse_tensor(sparse_mx):
+    """Convert a scipy sparse matrix to a torch sparse tensor."""
+    sparse_mx = sparse_mx.tocoo().astype(np.float32)
+    indices = torch.from_numpy(
+        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
+    values = torch.from_numpy(sparse_mx.data)
+    shape = torch.Size(sparse_mx.shape)
+    return torch.sparse.DoubleTensor(indices, values, shape)
