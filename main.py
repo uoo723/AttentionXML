@@ -99,15 +99,15 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
 
         if 'size' in data_cnf['valid']:
             if is_split_head_tail:
-                test_size = data_cnf['valid']['size']
+                valid_size = data_cnf['valid']['size']
                 train_h_x, valid_h_x, train_h_labels, valid_h_labels = train_test_split(
                     train_h_x, train_h_labels,
-                    test_size=test_size if len(train_h_x) < test_size else 0.1,
+                    test_size=valid_size if len(train_h_x) > 2 * valid_size else 0.1,
                 )
 
                 train_t_x, valid_t_x, train_t_labels, valid_t_labels = train_test_split(
                     train_t_x, train_t_labels,
-                    test_size=test_size if len(train_t_x) < test_size else 0.1,
+                    test_size=valid_size if len(train_t_x) > 2 * valid_size else 0.1,
                 )
 
             else:
