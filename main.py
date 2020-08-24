@@ -85,7 +85,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
         train_x, train_labels = get_data(data_cnf['train']['texts'], data_cnf['train']['labels'])
 
         if is_split_head_tail:
-            logger.info('Split head and tail labels')
+            logger.info(f'Split head and tail labels: {split_ratio}')
             head_labels, head_labels_i, tail_labels, tail_labels_i = get_head_tail_labels(
                 train_labels,
                 split_ratio,
