@@ -168,8 +168,13 @@ class FastAttentionXML(object):
         if level == 0:
             logger.info(F'Predicting Level-{level}, Top: {k}')
             if model is None:
-                model = Model(AttentionRNN, labels_num=labels_num, model_path=F'{self.model_path}-Level-{level}',
-                              emb_init=self.emb_init, **data_cnf['model'], **model_cnf['model'])
+                model = Model(
+                    AttentionRNN,
+                    labels_num=labels_num,
+                    model_path=F'{self.model_path}-Level-{level}',
+                    emb_init=self.emb_init, **data_cnf['model'],
+                    load_model=True,
+                    **model_cnf['model'])
             test_loader = DataLoader(MultiLabelDataset(test_x), model_cnf['predict']['batch_size'],
                                      num_workers=4)
             return model.predict(test_loader, k=k)
@@ -182,9 +187,14 @@ class FastAttentionXML(object):
             torch.cuda.empty_cache()
             logger.info(F'Predicting Level-{level}, Top: {k}')
             if model is None:
-                model = XMLModel(network=FastAttentionRNN, labels_num=labels_num,
-                                 model_path=F'{self.model_path}-Level-{level}',
-                                 emb_init=self.emb_init, **data_cnf['model'], **model_cnf['model'])
+                model = XMLModel(
+                    network=FastAttentionRNN,
+                    labels_num=labels_num,
+                    model_path=F'{self.model_path}-Level-{level}',
+                    emb_init=self.emb_init,
+                    load_model=True,
+                    **data_cnf['model'],
+                    **model_cnf['model'])
             test_loader = DataLoader(XMLDataset(test_x, labels_num=labels_num,
                                                 groups=groups, group_labels=group_labels, group_scores=group_scores),
                                      model_cnf['predict']['batch_size'], num_workers=4)

@@ -82,7 +82,6 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
         split_ratio = data_cnf['split_head_tail']
 
     elif is_random_forest:
-        models = []
         num_tree = model_cnf['random_forest']['num']
         train_xs = []
         train_ys = []
@@ -286,8 +285,6 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
                         len(mlb_list[i].classes_), data_cnf, model_cnf, tree_id,
                         f"{output_suffix}-{i}")
 
-                    models.append(model)
-
                     if not dry_run:
                         logger.info(f"Start Training RF {i}")
                         model.train(train_x, train_y, valid_x, valid_y, mlb_list[i], indices)
@@ -298,7 +295,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
 
                 if not dry_run:
                     model.train(train_x, train_y, valid_x, valid_y, mlb)
-                    torch.cuda.empty_cache()
+                    del model
 
         logger.info('Finish Training')
 
@@ -385,7 +382,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
                                 "splited head and tail dataset")
 
             elif is_random_forest:
-                if len(models) == 0:
+                if len(mlb_list) == 0:
                     labels_binarizer_path = data_cnf['labels_binarizer']
                     for i in range(num_tree):
                         filename = f"{labels_binarizer_path}_RF_{i}"
@@ -394,16 +391,19 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
                         model = FastAttentionXML(
                             len(mlb_tree.classes_), data_cnf, model_cnf, tree_id,
                             f"{output_suffix}-{i}")
-                        models.append(model)
 
                 scores_list = []
                 labels_list = []
 
-                for i, (model, mlb) in enumerate(zip(models, mlb_list)):
+                for i, mlb in enumerate(mlb_list):
                     logger.info(f"Predicting RF {i}")
+                    model = FastAttentionXML(
+                                len(mlb.classes_), data_cnf, model_cnf, tree_id,
+                                f"{output_suffix}-{i}")
                     scores, labels = model.predict(test_x, model_cnf['predict'].get('rf_k', 100 // num_tree))
                     scores_list.append(scores)
                     labels_list.append(mlb.classes_[labels])
+                    del model
                     logger.info(f"Finish Prediting RF {i}")
 
                 scores = np.hstack(scores_list)
