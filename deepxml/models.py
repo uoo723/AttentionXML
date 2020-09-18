@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from logzero import logger
 from typing import Optional, Mapping, Tuple
+# from apex import amp
 
 from deepxml.evaluation import get_p_5, get_n_5
 from deepxml.modules import *
@@ -31,6 +32,8 @@ class Model(object):
     def __init__(self, network, model_path, gradient_clip_value=5.0, device_ids=None,
                  load_model=False, **kwargs):
         self.model = nn.DataParallel(network(**kwargs).cuda(), device_ids=device_ids)
+        # self.model = network(**kwargs).cuda()
+        self.device_ids = device_ids
         self.loss_fn = nn.BCEWithLogitsLoss()
         self.model_path, self.state = model_path, {}
         os.makedirs(os.path.split(self.model_path)[0], exist_ok=True)
@@ -45,6 +48,10 @@ class Model(object):
         self.model.train()
         scores = self.model(train_x)
         loss = self.loss_fn(scores, train_y)
+
+        # with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+        #     scaled_loss.backward()
+
         loss.backward()
         self.clip_gradient()
         self.optimizer.step(closure=None)
@@ -58,11 +65,14 @@ class Model(object):
 
     def get_optimizer(self, **kwargs):
         self.optimizer = DenseSparseAdam(self.model.parameters(), **kwargs)
+        # self.model, self.optimizer = amp.initialize(self.model, self.optimizer)
+        # self.model = nn.DataParallel(self.model, device_ids=self.device_ids)
 
     def train(self, train_loader: DataLoader, valid_loader: DataLoader, opt_params: Optional[Mapping] = None,
               nb_epoch=100, step=100, k=5, early=50, verbose=True, swa_warmup=None, **kwargs):
         self.get_optimizer(**({} if opt_params is None else opt_params))
         global_step, best_n5, e = 0, 0.0, 0
+        self.save_model()
         for epoch_idx in range(nb_epoch):
             if epoch_idx == swa_warmup:
                 self.swa_init()
@@ -105,8 +115,8 @@ class Model(object):
             total_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm * self.gradient_clip_value)
             self.gradient_norm_queue.append(min(total_norm, max_norm * 2.0, 1.0))
             if total_norm > max_norm * self.gradient_clip_value:
-                logger.warn(F'Clipping gradients with total norm {round(total_norm, 5)} '
-                            F'and max norm {round(max_norm, 5)}')
+                logger.warning(F'Clipping gradients with total norm {round(total_norm, 5)} '
+                               F'and max norm {round(max_norm, 5)}')
 
     def swa_init(self):
         if 'swa' not in self.state:
@@ -189,4 +199,4 @@ class XMLModel(Model):
         torch.save(self.model.state_dict(), self.model_path)
 
     def load_model(self):
-        self.model.load_state_dict(torch.load(self.model_path))
+        self.model.load_state_dict(torch.load(self.model_path, map_location='cuda:0'))

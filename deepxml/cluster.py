@@ -9,6 +9,8 @@ Created on 2018/12/24
 import os
 
 import numpy as np
+
+from contextlib import redirect_stderr
 from logzero import logger
 from scipy.sparse import csc_matrix, csr_matrix
 from sklearn.preprocessing import normalize
@@ -39,6 +41,7 @@ def build_tree_by_level(
     train_x: str,
     emb_init: str,
     mlb,
+    indices: np.ndarray,
     eps: float,
     max_leaf: int,
     levels: list,
@@ -52,13 +55,27 @@ def build_tree_by_level(
 
     if label_emb == 'tf-idf':
         sparse_x, sparse_labels = get_sparse_feature(sparse_data_x, sparse_data_y)
-        sparse_y = mlb.transform(sparse_labels)
+
+        with redirect_stderr(None):
+            sparse_y = mlb.transform(sparse_labels)
+
+        if indices is not None:
+            sparse_x = sparse_x[indices]
+            sparse_y = sparse_y[indices]
+
         labels_f = normalize(csr_matrix(sparse_y.T) @ csc_matrix(sparse_x))
 
     elif label_emb == 'glove':
         emb_init = get_word_emb(emb_init)
         train_x, train_y = get_data(train_x, sparse_data_y)
-        train_y = mlb.transform(train_y)
+
+        with redirect_stderr(None):
+            train_y = mlb.transform(train_y)
+
+        if indices is not None:
+            train_x = train_x[indices]
+            train_y = train_y[indices]
+
         labels_f = _get_labels_f(emb_init, train_x, train_y)
 
     logger.info(F'Start Clustering {levels}')

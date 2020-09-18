@@ -195,19 +195,19 @@ class FastAttentionXML(object):
         return np.asarray([list(range(i, i + self.inter_group_size))
                            for i in range(0, labels_num, self.inter_group_size)])
 
-    def train(self, train_x, train_y, valid_x, valid_y, mlb):
+    def train(self, train_x, train_y, valid_x, valid_y, mlb, indices=None):
         self.model_cnf['cluster']['groups_path'] = self.groups_path
         cluster_process = Process(target=build_tree_by_level,
                                   args=(self.data_cnf['train']['sparse'],
                                         self.data_cnf['train']['labels'],
                                         self.data_cnf['train']['texts'],
                                         self.data_cnf['embedding']['emb_init'],
-                                        mlb),
+                                        mlb, indices),
                                   kwargs=self.model_cnf['cluster'])
         cluster_process.start()
         self.train_level(self.level - 1, train_x, train_y, valid_x, valid_y)
         cluster_process.join()
         cluster_process.close()
 
-    def predict(self, test_x):
-        return self.predict_level(self.level - 1, test_x, self.model_cnf['predict'].get('k', 100), self.labels_num)
+    def predict(self, test_x, k=100):
+        return self.predict_level(self.level - 1, test_x, k, self.labels_num)

@@ -12,6 +12,7 @@ import joblib
 import scipy as sp
 import torch
 
+from functools import reduce
 from collections import Counter
 from sklearn.preprocessing import MultiLabelBinarizer, normalize
 from sklearn.datasets import load_svmlight_file
@@ -78,8 +79,8 @@ def truncate_text(texts, max_len=500, padding_idx=0, unknown_idx=1):
     return texts
 
 
-def get_mlb(mlb_path, labels=None) -> MultiLabelBinarizer:
-    if os.path.exists(mlb_path):
+def get_mlb(mlb_path, labels=None, force=False) -> MultiLabelBinarizer:
+    if os.path.exists(mlb_path) and not force:
         return joblib.load(mlb_path)
     mlb = MultiLabelBinarizer(sparse_output=True)
     mlb.fit(labels)
@@ -140,6 +141,46 @@ def get_head_tail_samples(
     tail_labels_i = np.array(list(tail_labels_i))
 
     return head_labels_i, tail_labels_i
+
+
+def get_unique_labels(labels: np.ndarray) -> np.ndarray:
+    def reducer(acc, cur):
+        acc.update(cur)
+        return acc
+
+    unique_labels = reduce(reducer, labels, set())
+
+    return np.array(list(unique_labels))
+
+
+def get_splitted_samples(
+    splitted_labels: np.ndarray,
+    labels: np.ndarray,
+) -> np.ndarray:
+    splitted_labels_i = set()
+
+    for i, y in enumerate(labels):
+        for label in y:
+            if label in splitted_labels:
+                splitted_labels_i.add(i)
+
+    splitted_labels_i = np.array(list(splitted_labels_i))
+
+    return splitted_labels_i
+
+
+def split_labels(labels: np.ndarray, num: int) -> Iterable[np.ndarray]:
+    indices = np.random.permutation(len(labels))
+    num_labels_per_group = len(indices) // num
+    splitted_labels = []
+
+    for i in range(num):
+        start = i * num_labels_per_group
+        end = start + num_labels_per_group
+        index = indices[start:] if i + 1 == num else indices[start:end]
+        splitted_labels.append(labels[index])
+
+    return splitted_labels
 
 
 # https://github.com/tkipf/pygcn/blob/master/pygcn/utils.py

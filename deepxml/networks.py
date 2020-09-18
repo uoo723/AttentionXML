@@ -7,9 +7,9 @@ Created on 2018/12/9
 """
 
 import torch.nn as nn
+import torch.nn.functional as F
 
 from deepxml.modules import *
-
 
 __all__ = ['AttentionRNN', 'FastAttentionRNN']
 

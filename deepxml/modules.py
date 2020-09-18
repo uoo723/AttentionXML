@@ -11,8 +11,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-__all__ = ['Embedding', 'LSTMEncoder', 'MLAttention', 'AttentionWeights', 'FastMLAttention', 'MLLinear']
+__all__ = [
+    'Embedding', 'LSTMEncoder', 'MLAttention', 'AttentionWeights',
+    'FastMLAttention', 'MLLinear', 'GraphConvolution',
+]
 
 
 class Embedding(nn.Module):
