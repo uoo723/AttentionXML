@@ -298,6 +298,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
 
                 if not dry_run:
                     model.train(train_x, train_y, valid_x, valid_y, mlb)
+                    torch.cuda.empty_cache()
 
         logger.info('Finish Training')
 
