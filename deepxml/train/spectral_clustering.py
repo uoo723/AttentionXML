@@ -82,8 +82,9 @@ def spectral_clustering_train(
                         "supported spectral clustering mode.")
 
     labels_binarizer_path = data_cnf['labels_binarizer']
+    suffix = output_suffix.upper().replace('-', '_')
     for i, labels in enumerate(splitted_labels):
-        filename = f"{labels_binarizer_path}_SC_{i}"
+        filename = f"{labels_binarizer_path}_{suffix}_{i}"
         mlb_tree = get_mlb(filename, labels[None, ...], force=True)
         mlb_list.append(mlb_tree)
         logger.info(f"Number of labels of cluster {i}: {len(labels):,}")
@@ -141,8 +142,9 @@ def spectral_clustering_eval(
     test_x, _ = get_data(data_cnf['test']['texts'], None)
     logger.info(F'Size of Test Set: {len(test_x):,}')
 
+    suffix = output_suffix.upper().replace('-', '_')
     for i in range(n_clusters):
-        filename = f"{labels_binarizer_path}_SC_{i}"
+        filename = f"{labels_binarizer_path}_{suffix}_{i}"
         mlb_tree = get_mlb(filename)
         mlb_list.append(mlb_tree)
 
