@@ -11,31 +11,21 @@ import random
 import torch
 
 from pathlib import Path
-from contextlib import redirect_stderr
 
 import click
-
-import mlflow
-import mlflow.pytorch
 
 import numpy as np
 import torch.distributed as dist
 
 from logzero import logger
 from ruamel.yaml import YAML
-from sklearn.model_selection import train_test_split
-from torch import multiprocessing as mp
-from torch.utils.data import DataLoader
 
-from deepxml.data_utils import (
-    get_data, get_mlb, get_word_emb, output_res, get_head_tail_labels,
-    get_head_tail_samples, get_unique_labels, split_labels, get_splitted_samples,
+from deepxml.data_utils import get_word_emb
+
+from deepxml.train import (
+    default_train, default_eval, splitting_head_tail_train, splitting_head_tail_eval,
+    random_forest_train, random_forest_eval,
 )
-
-from deepxml.dataset import MultiLabelDataset
-from deepxml.models import Model
-from deepxml.networks import AttentionRNN
-from deepxml.tree import FastAttentionXML
 
 
 def set_seed(seed):
@@ -73,367 +63,60 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
 
     is_split_head_tail = 'split_head_tail' in data_cnf
     is_random_forest = 'random_forest' in model_cnf
+    is_spectral_clustering = 'spectral_clustering' in model_cnf
 
     if is_split_head_tail:
+        split_ratio = data_cnf['split_head_tail']
         head_model = None
         tail_model = None
         head_labels = None
         tail_labels = None
-        split_ratio = data_cnf['split_head_tail']
 
     elif is_random_forest:
         num_tree = model_cnf['random_forest']['num']
-        train_xs = []
-        train_ys = []
-        train_labels_list = []
-        valid_xs = []
-        valid_ys = []
-        valid_labels_list = []
-        mlb_list = []
-        indices_list = []
+
+    elif is_spectral_clustering:
+        pass
 
     if mode is None or mode == 'train':
-        logger.info('Loading Training and Validation Set')
-        train_x, train_labels = get_data(data_cnf['train']['texts'], data_cnf['train']['labels'])
-
         if is_split_head_tail:
-            logger.info(f'Split head and tail labels: {split_ratio}')
-            head_labels, head_labels_i, tail_labels, tail_labels_i = get_head_tail_labels(
-                train_labels,
-                split_ratio,
+            head_model, tail_model, head_labels, tail_labels = splitting_head_tail_train(
+                data_cnf, data_cnf_path, model_cnf, model_cnf_path, emb_init,
+                model_path, tree_id, output_suffix, dry_run, split_ratio,
+
             )
 
-            train_h_x = train_x[head_labels_i]
-            train_h_labels = train_labels[head_labels_i]
-
-            train_t_x = train_x[tail_labels_i]
-            train_t_labels = train_labels[tail_labels_i]
-
         elif is_random_forest:
-            unique_labels = get_unique_labels(train_labels)
-            splitted_labels = split_labels(unique_labels, num_tree)
-
-            for labels in splitted_labels:
-                indices = get_splitted_samples(labels, train_labels)
-                indices_list.append(indices)
-                train_xs.append(train_x[indices])
-                train_labels_list.append(train_labels[indices])
-
-        if 'size' in data_cnf['valid']:
-            if is_split_head_tail:
-                valid_size = data_cnf['valid']['size']
-                train_h_x, valid_h_x, train_h_labels, valid_h_labels = train_test_split(
-                    train_h_x, train_h_labels,
-                    test_size=valid_size if len(train_h_x) > 2 * valid_size else 0.1,
-                )
-
-                train_t_x, valid_t_x, train_t_labels, valid_t_labels = train_test_split(
-                    train_t_x, train_t_labels,
-                    test_size=valid_size if len(train_t_x) > 2 * valid_size else 0.1,
-                )
-
-            elif is_random_forest:
-                valid_size = data_cnf['valid']['size']
-                for i, (train_x, train_labels) in enumerate(zip(train_xs, train_labels_list)):
-                    train_x, valid_x, train_labels, valid_labels = train_test_split(
-                        train_x, train_labels, test_size=valid_size,
-                    )
-                    train_xs[i] = train_x
-                    train_labels_list[i] = train_labels
-                    valid_xs.append(valid_x)
-                    valid_labels_list.append(valid_labels)
-
-            else:
-                train_x, valid_x, train_labels, valid_labels = train_test_split(
-                    train_x, train_labels, test_size=data_cnf['valid']['size'],
-                )
+            random_forest_train(
+                data_cnf, data_cnf_path, model_cnf, model_cnf_path, emb_init,
+                model_path, tree_id, output_suffix, dry_run, num_tree,
+            )
 
         else:
-            valid_x, valid_labels = get_data(data_cnf['valid']['texts'], data_cnf['valid']['labels'])
-
-            if is_split_head_tail:
-                valid_h_labels_i, valid_t_labels_i = get_head_tail_samples(
-                    head_labels, tail_labels, valid_labels,
-                )
-                valid_t_x = valid_x[valid_h_labels_i]
-                valid_h_x = valid_x[valid_t_labels_i]
-                valid_h_labels = valid_x[valid_h_labels_i]
-                valid_t_labels = valid_x[valid_t_labels_i]
-
-            elif is_random_forest:
-                raise Exception("Setting valid set explicitly is not "
-                                "supported random forest mode.")
-
-        if is_split_head_tail:
-            labels_binarizer_path = data_cnf['labels_binarizer']
-            mlb_h = get_mlb(f"{labels_binarizer_path}_h_{split_ratio}", head_labels[None, ...])
-            mlb_t = get_mlb(f"{labels_binarizer_path}_t_{split_ratio}", tail_labels[None, ...])
-
-            with redirect_stderr(None):
-                train_h_y = mlb_h.transform(train_h_labels)
-                valid_h_y = mlb_h.transform(valid_h_labels)
-                train_t_y = mlb_t.transform(train_t_labels)
-                valid_t_y = mlb_t.transform(valid_t_labels)
-
-            logger.info(f'Number of Head Labels: {len(head_labels):,}')
-            logger.info(f'Number of Tail Labels: {len(tail_labels):,}')
-            logger.info(f'Size of Head Training Set: {len(train_h_x):,}')
-            logger.info(f'Size of Head Validation Set: {len(valid_h_x):,}')
-            logger.info(f'Size of Tail Training Set: {len(train_t_x):,}')
-            logger.info(f'Size of Tail Validation Set: {len(valid_t_x):,}')
-
-        elif is_random_forest:
-            labels_binarizer_path = data_cnf['labels_binarizer']
-            mlb = get_mlb(data_cnf['labels_binarizer'], np.hstack((
-                train_labels, valid_labels,
-            )))
-
-            for i, labels in enumerate(splitted_labels):
-                filename = f"{labels_binarizer_path}_RF_{i}"
-                mlb_tree = get_mlb(filename, labels[None, ...])
-                mlb_list.append(mlb_tree)
-                logger.info(f"Number of labels of Tree {i}: {len(labels):,}")
-                logger.info(f"Number of Training Set of Tree {i}: {len(train_xs[i]):,}")
-                logger.info(f"Number of Validation Set of Tree {i}: {len(valid_xs[i]):,}")
-
-                with redirect_stderr(None):
-                    train_y = mlb_tree.transform(train_labels_list[i])
-                    valid_y = mlb_tree.transform(valid_labels_list[i])
-
-                train_ys.append(train_y)
-                valid_ys.append(valid_y)
-
-        else:
-            mlb = get_mlb(data_cnf['labels_binarizer'], np.hstack((
-                train_labels, valid_labels,
-            )))
-            train_y, valid_y = mlb.transform(train_labels), mlb.transform(valid_labels)
-            labels_num = len(mlb.classes_)
-            logger.info(F'Number of Labels: {labels_num}')
-            logger.info(F'Size of Training Set: {len(train_x):,}')
-            logger.info(F'Size of Validation Set: {len(valid_x):,}')
-
-        logger.info('Training')
-        if 'cluster' not in model_cnf:
-            if is_split_head_tail:
-                train_h_loader = DataLoader(
-                    MultiLabelDataset(train_h_x, train_h_y),
-                    model_cnf['train']['batch_size'], shuffle=True, num_workers=4)
-                valid_h_loader = DataLoader(
-                    MultiLabelDataset(valid_h_x, valid_h_y, training=False),
-                    model_cnf['valid']['batch_size'], num_workers=4)
-                head_model = Model(
-                    network=AttentionRNN, labels_num=len(head_labels),
-                    model_path=f'{model_path}-head', emb_init=emb_init,
-                    **data_cnf['model'], **model_cnf['model'])
-
-                if not dry_run:
-                    logger.info('Training Head Model')
-                    head_model.train(train_h_loader, valid_h_loader, **model_cnf['train'])
-                    logger.info('Finish Traning Head Model')
-                else:
-                    head_model.save_model()
-
-                train_t_loader = DataLoader(
-                    MultiLabelDataset(train_t_x, train_t_y),
-                    model_cnf['train']['batch_size'], shuffle=True, num_workers=4)
-                valid_t_loader = DataLoader(
-                    MultiLabelDataset(valid_t_x, valid_t_y, training=False),
-                    model_cnf['valid']['batch_size'], num_workers=4)
-                tail_model = Model(
-                    network=AttentionRNN, labels_num=len(tail_labels),
-                    model_path=f'{model_path}-tail', emb_init=emb_init,
-                    **data_cnf['model'], **model_cnf['model'])
-
-                if not dry_run:
-                    logger.info('Training Tail Model')
-                    tail_model.train(train_t_loader, valid_t_loader, **model_cnf['train'])
-                    logger.info('Finish Traning Tail Model')
-                else:
-                    tail_model.save_model()
-
-            elif is_random_forest:
-                raise Exception("AttentionXML is not currently supported for "
-                                "random forest mode")
-
-            else:
-                train_loader = DataLoader(
-                    MultiLabelDataset(train_x, train_y),
-                    model_cnf['train']['batch_size'], shuffle=True, num_workers=4)
-                valid_loader = DataLoader(
-                    MultiLabelDataset(valid_x, valid_y, training=False),
-                    model_cnf['valid']['batch_size'], num_workers=4)
-                model = Model(
-                    network=AttentionRNN, labels_num=labels_num, model_path=model_path,
-                    emb_init=emb_init, **data_cnf['model'], **model_cnf['model'])
-
-                # mlflow.pytorch.log_model(model.model.module, 'model')
-                if not dry_run:
-                    model.train(train_loader, valid_loader, **model_cnf['train'])
-                else:
-                    model.save_model()
-        else:
-            if is_split_head_tail:
-                raise Exception("FastAttention is not currently supported for "
-                                "splited head and tail dataset")
-
-            elif is_random_forest:
-                for i, (train_x, train_y, valid_x, valid_y, indices) in enumerate(zip(
-                    train_xs, train_ys, valid_xs, valid_ys, indices_list
-                )):
-                    model = FastAttentionXML(
-                        len(mlb_list[i].classes_), data_cnf, model_cnf, tree_id,
-                        f"{output_suffix}-{i}")
-
-                    if not dry_run:
-                        logger.info(f"Start Training RF {i}")
-                        model.train(train_x, train_y, valid_x, valid_y, mlb_list[i], indices)
-                        logger.info(f"Finish Training RF {i}")
-
-            else:
-                model = FastAttentionXML(labels_num, data_cnf, model_cnf, tree_id, output_suffix)
-
-                if not dry_run:
-                    model.train(train_x, train_y, valid_x, valid_y, mlb)
-                    del model
-
-        logger.info('Finish Training')
-
-        if not dry_run:
-            mlflow.log_artifact(data_cnf_path, 'config')
-            mlflow.log_artifact(model_cnf_path, 'config')
+            default_train(
+                data_cnf, data_cnf_path, model_cnf, model_cnf_path, emb_init,
+                model_path, tree_id, output_suffix, dry_run,
+            )
 
     if mode is None or mode == 'eval':
-        logger.info('Loading Test Set')
-        mlb = get_mlb(data_cnf['labels_binarizer'])
-        labels_num = len(mlb.classes_)
-        test_x, _ = get_data(data_cnf['test']['texts'], None)
-        logger.info(F'Size of Test Set: {len(test_x):,}')
-
         if is_split_head_tail:
-            labels_binarizer_path = data_cnf['labels_binarizer']
-            mlb_h = get_mlb(f"{labels_binarizer_path}_h_{split_ratio}")
-            mlb_t = get_mlb(f"{labels_binarizer_path}_t_{split_ratio}")
+            splitting_head_tail_eval(
+                data_cnf, model_cnf, data_name, model_name, model_path, emb_init,
+                tree_id, output_suffix, dry_run, split_ratio, head_labels, tail_labels,
+                head_model, tail_model,
+            )
 
-            if head_labels is None:
-                train_x, train_labels = get_data(data_cnf['train']['texts'],
-                                                 data_cnf['train']['labels'])
-                head_labels, _, tail_labels, _ = get_head_tail_labels(
-                    train_labels,
-                    split_ratio,
-                )
+        elif is_random_forest:
+            random_forest_eval(
+                data_cnf, model_cnf, model_name, model_path, emb_init,
+                tree_id, output_suffix, dry_run, num_tree,
+            )
 
-            h_labels_i = np.nonzero(mlb.transform(head_labels[None, ...]).toarray())[0]
-            t_labels_i = np.nonzero(mlb.transform(tail_labels[None, ...]).toarray())[0]
-
-        logger.info('Predicting')
-        if 'cluster' not in model_cnf:
-            test_loader = DataLoader(
-                MultiLabelDataset(test_x),
-                model_cnf['predict']['batch_size'],
-                num_workers=4)
-
-            if is_split_head_tail:
-                if head_model is None:
-                    head_model = Model(
-                        network=AttentionRNN, labels_num=len(head_labels),
-                        model_path=f'{model_path}-head', emb_init=emb_init,
-                        **data_cnf['model'], **model_cnf['model'])
-
-                logger.info('Predicting Head Model')
-                h_k = model_cnf['predict'].get('top_head_k', 30)
-                scores_h, labels_h = head_model.predict(test_loader, k=h_k)
-                labels_h = mlb_h.classes_[labels_h]
-                logger.info('Finish Predicting Head Model')
-
-                if tail_model is None:
-                    tail_model = Model(
-                        network=AttentionRNN, labels_num=len(tail_labels),
-                        model_path=f'{model_path}-tail', emb_init=emb_init,
-                        **data_cnf['model'], **model_cnf['model'])
-
-                logger.info('Predicting Tail Model')
-                t_k = model_cnf['predict'].get('top_tail_k', 70)
-                scores_t, labels_t = tail_model.predict(test_loader, k=t_k)
-                labels_t = mlb_t.classes_[labels_t]
-                logger.info('Finish Predicting Tail Model')
-
-                scores = np.c_[scores_h, scores_t]
-                labels = np.c_[labels_h, labels_t]
-
-                i = np.arange(len(scores))[:, None]
-                j = np.argsort(scores)[:, ::-1]
-
-                scores = scores[i, j]
-                labels = labels[i, j]
-
-            else:
-                if model is None:
-                    model = Model(
-                        network=AttentionRNN, labels_num=labels_num,
-                        model_path=model_path, emb_init=emb_init,
-                        **data_cnf['model'], **model_cnf['model'])
-
-                scores, labels = model.predict(test_loader, k=model_cnf['predict'].get('k', 100))
-                labels = mlb.classes_[labels]
         else:
-            if is_split_head_tail:
-                raise Exception("FastAttention is not currently supported for "
-                                "splited head and tail dataset")
-
-            elif is_random_forest:
-                if len(mlb_list) == 0:
-                    labels_binarizer_path = data_cnf['labels_binarizer']
-                    for i in range(num_tree):
-                        filename = f"{labels_binarizer_path}_RF_{i}"
-                        mlb_tree = get_mlb(filename)
-                        mlb_list.append(mlb_tree)
-                        model = FastAttentionXML(
-                            len(mlb_tree.classes_), data_cnf, model_cnf, tree_id,
-                            f"{output_suffix}-{i}")
-
-                scores_list = []
-                labels_list = []
-
-                for i, mlb in enumerate(mlb_list):
-                    logger.info(f"Predicting RF {i}")
-                    model = FastAttentionXML(
-                                len(mlb.classes_), data_cnf, model_cnf, tree_id,
-                                f"{output_suffix}-{i}")
-                    scores, labels = model.predict(test_x, model_cnf['predict'].get('rf_k', 100 // num_tree))
-                    scores_list.append(scores)
-                    labels_list.append(mlb.classes_[labels])
-                    del model
-                    logger.info(f"Finish Prediting RF {i}")
-
-                scores = np.hstack(scores_list)
-                labels = np.hstack(labels_list)
-
-                i = np.arange(len(scores))[:, None]
-                j = np.argsort(scores)[:, ::-1]
-
-                scores = scores[i, j]
-                labels = labels[i, j]
-
-            else:
-                if model is None:
-                    model = FastAttentionXML(labels_num, data_cnf, model_cnf, tree_id, output_suffix)
-
-                scores, labels = model.predict(test_x, model_cnf['predict'].get('k', 100))
-                labels = mlb.classes_[labels]
-
-        logger.info('Finish Predicting')
-        score_path, label_path = output_res(data_cnf['output']['res'],
-                                            f'{model_name}-{data_name}{tree_id}',
-                                            scores, labels, output_suffix)
-
-        if mode is None and not dry_run:
-            mlflow.log_artifact(score_path, 'results')
-            mlflow.log_artifact(label_path, 'results')
-
-    if not dry_run:
-        with open('run_id.txt', 'w') as f:
-            f.write(mlflow.active_run().info.run_id)
+            default_train(
+                data_cnf, model_cnf, data_name, model_path, emb_init,
+                tree_id, output_suffix, dry_run,
+            )
 
 
 def distributed_train(gpu, args):
