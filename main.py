@@ -24,7 +24,8 @@ from deepxml.data_utils import get_word_emb
 
 from deepxml.train import (
     default_train, default_eval, splitting_head_tail_train, splitting_head_tail_eval,
-    random_forest_train, random_forest_eval,
+    random_forest_train, random_forest_eval, spectral_clustering_train,
+    spectral_clustering_eval,
 )
 
 
@@ -92,6 +93,12 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
                 model_path, tree_id, output_suffix, dry_run, num_tree,
             )
 
+        elif is_spectral_clustering:
+            spectral_clustering_train(
+                data_cnf, data_cnf_path, model_cnf, model_cnf_path, emb_init,
+                model_path, tree_id, output_suffix, dry_run,
+            )
+
         else:
             default_train(
                 data_cnf, data_cnf_path, model_cnf, model_cnf_path, emb_init,
@@ -108,13 +115,19 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
 
         elif is_random_forest:
             random_forest_eval(
-                data_cnf, model_cnf, model_name, model_path, emb_init,
+                data_cnf, model_cnf, data_name, model_name, model_path, emb_init,
                 tree_id, output_suffix, dry_run, num_tree,
+            )
+
+        elif is_spectral_clustering:
+            spectral_clustering_eval(
+                data_cnf, model_cnf, data_name, model_name, model_path, emb_init,
+                tree_id, output_suffix, dry_run,
             )
 
         else:
             default_train(
-                data_cnf, model_cnf, data_name, model_path, emb_init,
+                data_cnf, model_cnf, data_name, model_name, model_path, emb_init,
                 tree_id, output_suffix, dry_run,
             )
 
