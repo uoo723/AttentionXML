@@ -17,6 +17,16 @@ def log_config(data_cnf_path, model_cnf_path, dry_run):
         mlflow.log_artifact(model_cnf_path, 'config')
 
 
+def log_tag(dry_run, model_name, data_name, suffix):
+    if not dry_run:
+        mlflow.set_tags({
+            'mlflow.runName': f'{model_name}-{data_name}-{suffix.upper()}',
+            'model': model_name,
+            'data': data_name,
+            'suffix': suffix,
+        })
+
+
 def log_results(score_path, label_path, dry_run):
     if not dry_run:
         mlflow.log_artifact(score_path, 'results')

@@ -105,6 +105,8 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
                 model_path, tree_id, output_suffix, dry_run,
             )
 
+        log_tag(dry_run, model_name, data_name, output_suffix)
+
     if mode is None or mode == 'eval':
         if is_split_head_tail:
             splitting_head_tail_eval(
