@@ -130,7 +130,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
             )
 
         else:
-            default_train(
+            default_eval(
                 data_cnf, model_cnf, data_name, model_name, model_path, emb_init,
                 tree_id, output_suffix, dry_run,
             )
