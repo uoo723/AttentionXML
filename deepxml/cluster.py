@@ -7,13 +7,23 @@ Created on 2018/12/24
 """
 
 import os
+import warnings
 
 import numpy as np
 
 from contextlib import redirect_stderr
 from logzero import logger
 from scipy.sparse import csc_matrix, csr_matrix
+
 from sklearn.preprocessing import normalize
+
+from sklearn.cluster import SpectralClustering
+from sklearn.cluster.spectral import discretize
+from sklearn.cluster.k_means_ import k_means
+from sklearn.utils import check_array, check_random_state
+from sklearn.neighbors import kneighbors_graph
+from sklearn.metrics.pairwise import pairwise_kernels
+from sklearn.manifold import spectral_embedding
 
 from deepxml.data_utils import get_data, get_sparse_feature, get_word_emb
 
@@ -134,3 +144,89 @@ def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
         centers = normalize(np.asarray([np.squeeze(np.asarray(labels_f[l_labels_i].sum(axis=0))),
                                         np.squeeze(np.asarray(labels_f[r_labels_i].sum(axis=0)))]))
     return (labels_i[l_labels_i], labels_f[l_labels_i]), (labels_i[r_labels_i], labels_f[r_labels_i])
+
+
+def neo_kmeans():
+    pass
+
+
+def spectral_clustering(affinity, n_clusters=8, n_components=None,
+                        eigen_solver=None, random_state=None, n_init=10,
+                        eigen_tol=0.0, assign_labels='kmeans'):
+    if assign_labels not in ('kmeans', 'neo-kmeans', 'discretize'):
+        raise ValueError("The 'assign_labels' parameter should be "
+                         "'kmeans' or 'discretize', but '%s' was given"
+                         % assign_labels)
+
+    random_state = check_random_state(random_state)
+    n_components = n_clusters if n_components is None else n_components
+
+    # The first eigen vector is constant only for fully connected graphs
+    # and should be kept for spectral clustering (drop_first = False)
+    # See spectral_embedding documentation.
+    maps = spectral_embedding(affinity, n_components=n_components,
+                              eigen_solver=eigen_solver,
+                              random_state=random_state,
+                              eigen_tol=eigen_tol, drop_first=False)
+
+    if assign_labels == 'kmeans':
+        _, labels, _ = k_means(maps, n_clusters, random_state=random_state,
+                               n_init=n_init)
+    elif assign_labels == 'neo-kmeans':
+        pass
+    else:
+        labels = discretize(maps, random_state=random_state)
+
+    return labels
+
+
+class MySpectralClustering(SpectralClustering):
+    def fit(self, X, y=None):
+        """Creates an affinity matrix for X using the selected affinity,
+        then applies spectral clustering to this affinity matrix.
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix, shape (n_samples, n_features)
+            OR, if affinity==`precomputed`, a precomputed affinity
+            matrix of shape (n_samples, n_samples)
+
+        y : Ignored
+
+        """
+        X = check_array(X, accept_sparse=['csr', 'csc', 'coo'],
+                        dtype=np.float64, ensure_min_samples=2)
+        if X.shape[0] == X.shape[1] and self.affinity != "precomputed":
+            warnings.warn("The spectral clustering API has changed. ``fit``"
+                          "now constructs an affinity matrix from data. To use"
+                          " a custom affinity matrix, "
+                          "set ``affinity=precomputed``.")
+
+        if self.affinity == 'nearest_neighbors':
+            connectivity = kneighbors_graph(X, n_neighbors=self.n_neighbors,
+                                            include_self=True,
+                                            n_jobs=self.n_jobs)
+            self.affinity_matrix_ = 0.5 * (connectivity + connectivity.T)
+        elif self.affinity == 'precomputed':
+            self.affinity_matrix_ = X
+        else:
+            params = self.kernel_params
+            if params is None:
+                params = {}
+            if not callable(self.affinity):
+                params['gamma'] = self.gamma
+                params['degree'] = self.degree
+                params['coef0'] = self.coef0
+            self.affinity_matrix_ = pairwise_kernels(X, metric=self.affinity,
+                                                     filter_params=True,
+                                                     **params)
+
+        random_state = check_random_state(self.random_state)
+        self.labels_ = spectral_clustering(self.affinity_matrix_,
+                                           n_clusters=self.n_clusters,
+                                           eigen_solver=self.eigen_solver,
+                                           random_state=random_state,
+                                           n_init=self.n_init,
+                                           eigen_tol=self.eigen_tol,
+                                           assign_labels=self.assign_labels)
+        return self

@@ -28,6 +28,8 @@ from deepxml.train import (
     spectral_clustering_eval,
 )
 
+from deepxml.train.utils import log_tag
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
