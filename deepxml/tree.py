@@ -9,6 +9,8 @@ Created on 2019/2/26
 import os
 import time
 import numpy as np
+import scipy.sparse as sp
+
 import torch
 from multiprocessing import Process
 from scipy.sparse import csr_matrix
@@ -213,7 +215,14 @@ class FastAttentionXML(object):
             alg = self.model_cnf['spectral_clustering']['alg']
 
             logger.info('Build label adjacency matrix')
-            y = np.vstack([train_y, valid_y])
+
+            if sp.issparse(train_y) and sp.issparse(valid_y):
+                y = sp.vstack([train_y, valid_y])
+            elif sp.isdense(train_y) and sp.isdense(valid_y):
+                y = np.vstack([train_y, valid_y])
+            else:
+                raise ValueError("train_y and valid_y both must be sparse or dense")
+
             adj = y.T @ y
             adj.setdiag(0)
             adj.eliminate_zeros()
