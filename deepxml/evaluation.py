@@ -30,10 +30,10 @@ TClass = Optional[List[Hashable]]
 
 def get_mlb(classes: TClass = None, mlb: TMlb = None, targets: TTarget = None):
     if classes is not None:
-        mlb = MultiLabelBinarizer(classes, sparse_output=True)
+        mlb = MultiLabelBinarizer(classes=classes, sparse_output=True)
     if mlb is None and targets is not None:
         if isinstance(targets, csr_matrix):
-            mlb = MultiLabelBinarizer(range(targets.shape[1]), sparse_output=True)
+            mlb = MultiLabelBinarizer(classes=range(targets.shape[1]), sparse_output=True)
             mlb.fit(None)
         else:
             mlb = MultiLabelBinarizer(sparse_output=True)
