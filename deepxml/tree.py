@@ -213,6 +213,8 @@ class FastAttentionXML(object):
             n_clusters = self.model_cnf['spectral_clustering']['num_clusters']
             n_components = self.model_cnf['spectral_clustering']['n_components']
             alg = self.model_cnf['spectral_clustering']['alg']
+            size_min = self.model_cnf['spectral_clustering']['size_min']
+            size_max = self.model_cnf['spectral_clustering']['size_max']
 
             logger.info('Build label adjacency matrix')
 
@@ -231,6 +233,8 @@ class FastAttentionXML(object):
             clustering = MySpectralClustering(
                 n_clusters=n_clusters, affinity='precomputed',
                 n_components=n_components, n_init=1,
+                size_min=size_min,
+                size_max=size_max,
                 assign_labels=alg, n_jobs=-1)
 
             logger.info('Start Spectral Clustering')

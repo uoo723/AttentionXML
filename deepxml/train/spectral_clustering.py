@@ -33,6 +33,8 @@ def spectral_clustering_train(
     n_clusters = model_cnf['spectral_clustering']['num_clusters']
     n_components = model_cnf['spectral_clustering']['n_components']
     alg = model_cnf['spectral_clustering']['alg']
+    size_min = model_cnf['spectral_clustering']['size_min']
+    size_max = model_cnf['spectral_clustering']['size_max']
 
     train_x, train_labels = load_dataset(data_cnf)
 
@@ -47,6 +49,8 @@ def spectral_clustering_train(
         logger.info(f"Sparsity: {adj.count_nonzero() / adj.shape[0] ** 2}")
         clustering = MySpectralClustering(n_clusters=n_clusters, affinity='precomputed',
                                           n_components=n_components, n_init=1,
+                                          size_min=size_min,
+                                          size_max=size_max,
                                           assign_labels=alg, n_jobs=-1)
         logger.info('Start Spectral Clustering')
         clustering.fit(adj)

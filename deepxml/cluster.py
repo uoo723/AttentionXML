@@ -19,11 +19,12 @@ from sklearn.preprocessing import normalize
 
 from sklearn.cluster import SpectralClustering
 from sklearn.cluster.spectral import discretize
-from sklearn.cluster.k_means_ import k_means
+from sklearn.cluster import k_means
 from sklearn.utils import check_array, check_random_state
 from sklearn.neighbors import kneighbors_graph
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.manifold import spectral_embedding
+from k_means_constrained.k_means_constrained_ import k_means_constrained
 
 from deepxml.data_utils import get_data, get_sparse_feature, get_word_emb
 
@@ -152,7 +153,8 @@ def neo_kmeans():
 
 def spectral_clustering(affinity, n_clusters=8, n_components=None,
                         eigen_solver=None, random_state=None, n_init=10,
-                        eigen_tol=0.0, assign_labels='kmeans'):
+                        eigen_tol=0.0, assign_labels='kmeans',
+                        size_min=None, size_max=None):
     if assign_labels not in ('kmeans', 'neo-kmeans', 'discretize'):
         raise ValueError("The 'assign_labels' parameter should be "
                          "'kmeans' or 'discretize', but '%s' was given"
@@ -170,8 +172,9 @@ def spectral_clustering(affinity, n_clusters=8, n_components=None,
                               eigen_tol=eigen_tol, drop_first=False)
 
     if assign_labels == 'kmeans':
-        _, labels, _ = k_means(maps, n_clusters, random_state=random_state,
-                               n_init=n_init)
+        _, labels, _ = k_means_constrained(maps, n_clusters,
+                                           random_state=random_state, n_init=n_init,
+                                           size_min=size_min, size_max=size_max)
     elif assign_labels == 'neo-kmeans':
         pass
     else:
@@ -181,6 +184,11 @@ def spectral_clustering(affinity, n_clusters=8, n_components=None,
 
 
 class MySpectralClustering(SpectralClustering):
+    def __init__(self, size_min=None, size_max=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.size_min = size_min
+        self.size_max = size_max
+
     def fit(self, X, y=None):
         """Creates an affinity matrix for X using the selected affinity,
         then applies spectral clustering to this affinity matrix.
@@ -228,5 +236,7 @@ class MySpectralClustering(SpectralClustering):
                                            random_state=random_state,
                                            n_init=self.n_init,
                                            eigen_tol=self.eigen_tol,
-                                           assign_labels=self.assign_labels)
+                                           assign_labels=self.assign_labels,
+                                           size_min=self.size_min,
+                                           size_max=self.size_max)
         return self
