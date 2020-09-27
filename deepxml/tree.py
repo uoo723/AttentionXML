@@ -213,7 +213,7 @@ class FastAttentionXML(object):
             alg = self.model_cnf['spectral_clustering']['alg']
 
             logger.info('Build label adjacency matrix')
-            y = np.hstack([train_y, valid_y])
+            y = np.vstack([train_y, valid_y])
             adj = y.T @ y
             adj.setdiag(0)
             adj.eliminate_zeros()
