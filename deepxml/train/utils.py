@@ -18,6 +18,9 @@ def log_config(data_cnf_path, model_cnf_path, dry_run):
 
 
 def log_tag(dry_run, model_name, data_name, suffix):
+    if suffix is not None:
+        suffix = suffix[1:]
+
     if not dry_run:
         mlflow.set_tags({
             'mlflow.runName': f'{model_name}-{data_name}-{suffix.upper()}',
