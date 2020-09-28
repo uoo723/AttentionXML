@@ -209,58 +209,17 @@ class FastAttentionXML(object):
 
     def train(self, train_x, train_y, valid_x, valid_y, mlb, indices=None):
         self.model_cnf['cluster']['groups_path'] = self.groups_path
-        if 'spectral_clustering' in self.model_cnf:
-            n_clusters = self.model_cnf['spectral_clustering']['num_clusters']
-            n_components = self.model_cnf['spectral_clustering']['n_components']
-            alg = self.model_cnf['spectral_clustering']['alg']
-            size_min = self.model_cnf['spectral_clustering']['size_min']
-            size_max = self.model_cnf['spectral_clustering']['size_max']
-
-            logger.info('Build label adjacency matrix')
-
-            if sp.issparse(train_y) and sp.issparse(valid_y):
-                y = sp.vstack([train_y, valid_y])
-            elif sp.isdense(train_y) and sp.isdense(valid_y):
-                y = np.vstack([train_y, valid_y])
-            else:
-                raise ValueError("train_y and valid_y both must be sparse or dense")
-
-            adj = y.T @ y
-            adj.setdiag(0)
-            adj.eliminate_zeros()
-            logger.info(f"Sparsity: {adj.count_nonzero() / adj.shape[0] ** 2}")
-
-            clustering = MySpectralClustering(
-                n_clusters=n_clusters, affinity='precomputed',
-                n_components=n_components, n_init=1,
-                size_min=size_min,
-                size_max=size_max,
-                assign_labels=alg, n_jobs=-1)
-
-            logger.info('Start Spectral Clustering')
-            clustering.fit(adj)
-            logger.info('Finish Spectral Clustering')
-
-            groups = [[] for _ in range(n_clusters)]
-            for i, group in enumerate(clustering.labels_):
-                groups[group].append(i)
-
-            groups = np.array(list(map(lambda x: np.array(x), groups)))
-            np.save(F'{self.groups_path}-Level-0.npy', groups)
-            self.train_level(self.level - 1, train_x, train_y, valid_x, valid_y)
-
-        else:
-            cluster_process = Process(target=build_tree_by_level,
-                                    args=(self.data_cnf['train']['sparse'],
-                                          self.data_cnf['train']['labels'],
-                                          self.data_cnf['train']['texts'],
-                                          self.data_cnf['embedding']['emb_init'],
-                                          mlb, indices),
-                                    kwargs=self.model_cnf['cluster'])
-            cluster_process.start()
-            self.train_level(self.level - 1, train_x, train_y, valid_x, valid_y)
-            cluster_process.join()
-            cluster_process.close()
+        cluster_process = Process(target=build_tree_by_level,
+                                args=(self.data_cnf['train']['sparse'],
+                                        self.data_cnf['train']['labels'],
+                                        self.data_cnf['train']['texts'],
+                                        self.data_cnf['embedding']['emb_init'],
+                                        mlb, indices),
+                                kwargs=self.model_cnf['cluster'])
+        cluster_process.start()
+        self.train_level(self.level - 1, train_x, train_y, valid_x, valid_y)
+        cluster_process.join()
+        cluster_process.close()
 
     def predict(self, test_x, k=100):
         return self.predict_level(self.level - 1, test_x, k, self.labels_num)

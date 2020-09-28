@@ -58,7 +58,8 @@ def build_tree_by_level(
     levels: list,
     label_emb: str,
     alg: str,
-    groups_path,
+    groups_path: str,
+    n_components: int = None,
 ):
     os.makedirs(os.path.split(groups_path)[0], exist_ok=True)
     logger.info('Clustering')
@@ -88,6 +89,22 @@ def build_tree_by_level(
             train_y = train_y[indices]
 
         labels_f = _get_labels_f(emb_init, train_x, train_y)
+
+    elif label_emb == 'spectral':
+        _, sparse_labels = get_sparse_feature(sparse_data_x, sparse_data_y)
+        sparse_y = mlb.transform(sparse_labels)
+
+        logger.info('Build label adjacency matrix')
+
+        adj = sparse_y.T @ sparse_y
+        adj.setdiag(0)
+        adj.eliminate_zeros()
+        logger.info(f"Sparsity: {1 - (adj.count_nonzero() / adj.shape[0] ** 2)}")
+
+        logger.info('Getting spectral embedding')
+        labels_f = spectral_embedding(adj, n_components=n_components,
+                                      eigen_solver='amg', drop_first=False)
+
 
     logger.info(F'Start Clustering {levels}')
 
