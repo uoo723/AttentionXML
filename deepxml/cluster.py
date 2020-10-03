@@ -126,6 +126,8 @@ def build_tree_by_level(
             level = levels.index(len(labels_list))
             logger.info(F'Finish Clustering Level-{level}')
             np.save(F'{groups_path}-Level-{level}.npy', np.asarray(labels_list))
+            if level == len(levels) - 1:
+                break
         else:
             logger.info(F'Finish Clustering {len(labels_list)}')
         next_q = []
