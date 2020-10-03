@@ -11,6 +11,7 @@ import warnings
 
 import numpy as np
 
+from functools import reduce
 from contextlib import redirect_stderr
 from logzero import logger
 from scipy.sparse import csc_matrix, csr_matrix
@@ -60,6 +61,7 @@ def build_tree_by_level(
     alg: str,
     groups_path: str,
     n_components: int = None,
+    overlap_ratio: float = 0.0,
 ):
     os.makedirs(os.path.split(groups_path)[0], exist_ok=True)
     logger.info('Clustering')
@@ -119,7 +121,7 @@ def build_tree_by_level(
         q = [(np.arange(labels_f.shape[0]), labels_f)]
     while q:
         labels_list = np.asarray([x[0] for x in q])
-        assert sum(len(labels) for labels in labels_list) == labels_f.shape[0]
+        assert len(reduce(lambda a, b: a | set(b), labels_list, set())) == labels_f.shape[0]
         if len(labels_list) in levels:
             level = levels.index(len(labels_list))
             logger.info(F'Finish Clustering Level-{level}')
@@ -129,18 +131,23 @@ def build_tree_by_level(
         next_q = []
         for node_i, node_f in q:
             if len(node_i) > max_leaf:
-                next_q += list(split_node(node_i, node_f, eps, alg == 'random'))
+                next_q += list(split_node(node_i, node_f, eps,
+                                          alg == 'random', overlap_ratio))
         q = next_q
     logger.info('Finish Clustering')
 
 
 def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
-               random: bool = False):
+               random: bool = False, overlap_ratio: float = 0.0):
     n = len(labels_i)
+    n_overlap = 0
+
+    if overlap_ratio > 0:
+        n_overlap = int(n // 2 * overlap_ratio)
 
     if random:
         partition = np.random.permutation(n)
-        l_labels_i, r_labels_i = partition[:n//2], partition[n//2:]
+        l_labels_i, r_labels_i = partition[:n//2 + n_overlap], partition[n//2 - n_overlap:]
 
         return (labels_i[l_labels_i], labels_f[l_labels_i]), (labels_i[r_labels_i], labels_f[r_labels_i])
 
@@ -157,7 +164,7 @@ def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
     while new_dis - old_dis >= eps:
         dis = labels_f @ centers.T  # N, 2
         partition = np.argsort(dis[:, 1] - dis[:, 0])
-        l_labels_i, r_labels_i = partition[:n//2], partition[n//2:]
+        l_labels_i, r_labels_i = partition[:n//2 + n_overlap], partition[n//2 - n_overlap:]
         old_dis, new_dis = new_dis, (dis[l_labels_i, 0].sum() + dis[r_labels_i, 1].sum()) / n
         centers = normalize(np.asarray([np.squeeze(np.asarray(labels_f[l_labels_i].sum(axis=0))),
                                         np.squeeze(np.asarray(labels_f[r_labels_i].sum(axis=0)))]))
