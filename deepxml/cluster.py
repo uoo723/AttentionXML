@@ -140,10 +140,7 @@ def build_tree_by_level(
 def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
                random: bool = False, overlap_ratio: float = 0.0):
     n = len(labels_i)
-    n_overlap = 0
-
-    if overlap_ratio > 0:
-        n_overlap = int(n // 2 * overlap_ratio)
+    n_overlap = int(n // 2 * overlap_ratio)
 
     if random:
         partition = np.random.permutation(n)
