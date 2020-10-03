@@ -52,12 +52,34 @@ class XMLDataset(MultiLabelDataset):
         self.labels_num, self.candidates, self.candidates_num = labels_num, candidates, candidates_num
         self.groups, self.group_labels, self.group_scores = groups, group_labels, group_scores
         if self.candidates is None:
-            self.candidates = [np.unique(np.concatenate([self.groups[g] for g in group_labels]))
+            self.candidates = [np.concatenate([self.groups[g] for g in group_labels])
                                for group_labels in tqdm(self.group_labels, leave=False, desc='Candidates')]
             if self.group_scores is not None:
-                self.candidates_scores = [np.concatenate([[s] * len(self.groups[g])
+                candidates_scores = [np.concatenate([[s] * len(self.groups[g])
                                                           for g, s in zip(group_labels, group_scores)])
                                           for group_labels, group_scores in zip(self.group_labels, self.group_scores)]
+
+                repeated = []
+                candidates = []
+                for candidate in self.candidates:
+                    vals, inverse, count = np.unique(candidate, return_inverse=True,
+                                                     return_counts=True)
+                    candidates.append(vals)
+
+                    idx_vals_repeated = np.where(count >= 1)[0]
+
+                    rows, cols = np.where(inverse == idx_vals_repeated[:, None])
+                    _, inverse_rows = np.unique(rows, return_index=True)
+                    res = np.split(cols, inverse_rows[1:])
+
+                    repeated.append(res)
+
+                self.candidates = candidates
+                self.candidates_scores = [np.array([np.max(s[i]) for i in r])
+                                          for r, s in zip(repeated, candidates_scores)]
+            else:
+                self.candidates = list(map(lambda x: np.unique(x), self.candidates))
+
         else:
             self.candidates_scores = [np.ones_like(candidates) for candidates in self.candidates]
         if self.candidates_num is None:
