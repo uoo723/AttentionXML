@@ -124,8 +124,12 @@ def build_tree_by_level(
         assert len(reduce(lambda a, b: a | set(b), labels_list, set())) == labels_f.shape[0]
         if len(labels_list) in levels:
             level = levels.index(len(labels_list))
+            groups = np.asarray(labels_list)
+            a = set(groups[0])
+            b = set(groups[1])
             logger.info(F'Finish Clustering Level-{level}')
-            np.save(F'{groups_path}-Level-{level}.npy', np.asarray(labels_list))
+            logger.info(f'# of node: {len(a)}, # of overlapped: {len(a & b)}')
+            np.save(F'{groups_path}-Level-{level}.npy', groups)
             if level == len(levels) - 1:
                 break
         else:
