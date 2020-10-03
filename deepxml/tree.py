@@ -12,6 +12,10 @@ import numpy as np
 import scipy.sparse as sp
 
 import torch
+
+from collections import defaultdict
+from typing import Dict, List
+
 from multiprocessing import Process
 from scipy.sparse import csr_matrix
 from torch.utils.data import DataLoader
@@ -44,19 +48,21 @@ class FastAttentionXML(object):
 
     @staticmethod
     def get_mapping_y(groups, labels_num, *args):
-        mapping = np.empty(labels_num + 1, dtype=np.long)
+        mapping = defaultdict(list)
         for idx, labels_list in enumerate(groups):
-            mapping[labels_list] = idx
-        mapping[labels_num] = len(groups)
+            for l in labels_list:
+                mapping[l].append(idx)
         return (FastAttentionXML.get_group_y(mapping, y, len(groups)) for y in args)
 
     @staticmethod
-    def get_group_y(mapping: np.ndarray, data_y: csr_matrix, groups_num):
+    def get_group_y(mapping: Dict[int, List[int]], data_y: csr_matrix, groups_num):
         r, c, d = [], [], []
         for i in range(data_y.shape[0]):
-            g = np.unique(mapping[data_y.indices[data_y.indptr[i]: data_y.indptr[i + 1]]])
+            g = set()
+            for l in data_y.indices[data_y.indptr[i]: data_y.indptr[i + 1]]:
+                g.update(mapping[l])
             r += [i] * len(g)
-            c += g.tolist()
+            c += sorted(g)
             d += [1] * len(g)
         return csr_matrix((d, (r, c)), shape=(data_y.shape[0], groups_num))
 
