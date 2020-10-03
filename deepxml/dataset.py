@@ -52,7 +52,7 @@ class XMLDataset(MultiLabelDataset):
         self.labels_num, self.candidates, self.candidates_num = labels_num, candidates, candidates_num
         self.groups, self.group_labels, self.group_scores = groups, group_labels, group_scores
         if self.candidates is None:
-            self.candidates = [np.concatenate([self.groups[g] for g in group_labels])
+            self.candidates = [np.unique(np.concatenate([self.groups[g] for g in group_labels]))
                                for group_labels in tqdm(self.group_labels, leave=False, desc='Candidates')]
             if self.group_scores is not None:
                 self.candidates_scores = [np.concatenate([[s] * len(self.groups[g])
