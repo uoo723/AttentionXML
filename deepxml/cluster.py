@@ -127,8 +127,10 @@ def build_tree_by_level(
             groups = np.asarray(labels_list)
             a = set(groups[0])
             b = set(groups[1])
+            n_nodes = [len(set(group)) for group in groups]
             logger.info(F'Finish Clustering Level-{level}')
             logger.info(f'# of node: {len(a)}, # of overlapped: {len(a & b)}')
+            logger.info(f'# of max node: {max(n_nodes)}')
             np.save(F'{groups_path}-Level-{level}.npy', groups)
             if level == len(levels) - 1:
                 break
