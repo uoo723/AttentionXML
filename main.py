@@ -13,6 +13,7 @@ import torch
 from pathlib import Path
 
 import click
+import mlflow
 
 import numpy as np
 import torch.distributed as dist
@@ -50,6 +51,9 @@ def set_seed(seed):
 @click.option('-s', '--output-suffix', type=click.STRING, default='', help='suffix of output name')
 @click.option('--dry-run', is_flag=True, default=False, help='dry run for test code')
 def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
+    if not dry_run:
+        mlflow.start_run()
+
     set_seed(tree_id)
 
     tree_id = F'-Tree-{tree_id}' if tree_id is not None else ''
