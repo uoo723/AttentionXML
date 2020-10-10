@@ -51,34 +51,41 @@ class XMLDataset(MultiLabelDataset):
         super(XMLDataset, self).__init__(data_x, data_y, training)
         self.labels_num, self.candidates, self.candidates_num = labels_num, candidates, candidates_num
         self.groups, self.group_labels, self.group_scores = groups, group_labels, group_scores
+
+        is_overlapping = False
+
         if self.candidates is None:
             self.candidates = [np.concatenate([self.groups[g] for g in group_labels])
                                for group_labels in tqdm(self.group_labels, leave=False, desc='Candidates')]
+
+            if len(self.candidates[0]) != len(np.unique(self.candidates[0])):
+                is_overlapping = True
+
             if self.group_scores is not None:
                 self.candidates_scores = [np.concatenate([[s] * len(self.groups[g])
                                                           for g, s in zip(group_labels, group_scores)])
                                           for group_labels, group_scores in zip(self.group_labels, self.group_scores)]
 
-            #     repeated = []
-            #     candidates = []
-            #     for candidate in tqdm(self.candidates, leave=False, desc="Scores"):
-            #         vals, inverse, count = np.unique(candidate, return_inverse=True,
-            #                                          return_counts=True)
-            #         candidates.append(vals)
+                if is_overlapping:
+                    candidates_scores = []
+                    candidates, inverses = zip(
+                        *map(lambda x: np.unique(x, return_inverse=True), self.candidates))
 
-            #         idx_vals_repeated = np.where(count >= 1)[0]
+                    for i, inverse in tqdm(enumerate(inverses), leave=False, desc="Scores",
+                                           total=len(inverses)):
+                        n = len(candidates[i])
+                        rows, cols = np.where(inverse == np.arange(n)[:, None])
+                        _, inverse_rows = np.unique(rows, return_index=True)
+                        res = np.split(cols, inverse_rows[1:])
 
-            #         rows, cols = np.where(inverse == idx_vals_repeated[:, None])
-            #         _, inverse_rows = np.unique(rows, return_index=True)
-            #         res = np.split(cols, inverse_rows[1:])
+                        s = self.candidates_scores[i]
+                        candidates_scores.append(np.array([np.max(s[i]) for i in res]))
 
-            #         repeated.append(res)
+                    self.candidates = list(candidates)
+                    self.candidates_scores = candidates_scores
 
-            #     self.candidates = candidates
-            #     self.candidates_scores = [np.array([np.max(s[i]) for i in r])
-            #                               for r, s in zip(repeated, candidates_scores)]
-            # else:
-            #     self.candidates = list(map(lambda x: np.unique(x), self.candidates))
+            elif is_overlapping:
+                self.candidates = list(map(lambda x: np.unique(x), self.candidates))
 
         else:
             self.candidates_scores = [np.ones_like(candidates) for candidates in self.candidates]
