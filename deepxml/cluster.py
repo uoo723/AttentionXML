@@ -62,6 +62,7 @@ def build_tree_by_level(
     groups_path: str,
     n_components: int = None,
     overlap_ratio: float = 0.0,
+    adj_th: int = None,
 ):
     os.makedirs(os.path.split(groups_path)[0], exist_ok=True)
     logger.info('Clustering')
@@ -101,12 +102,24 @@ def build_tree_by_level(
         adj = sparse_y.T @ sparse_y
         adj.setdiag(0)
         adj.eliminate_zeros()
+
+        if adj_th is not None:
+            logger.info(f"adj th: {adj_th}")
+            ind1 = np.where(adj.data < adj_th)
+            ind2 = np.where(adj.data >= adj_th)
+            adj.data[ind1] = 0
+            adj.data[ind2] = 1
+            adj.eliminate_zeros()
+
         logger.info(f"Sparsity: {1 - (adj.count_nonzero() / adj.shape[0] ** 2)}")
 
         logger.info('Getting spectral embedding')
         labels_f = spectral_embedding(adj, n_components=n_components,
+                                      norm_laplacian=adj_th is None,
                                       eigen_solver='amg', drop_first=False)
 
+    else:
+        raise ValueError(f"label_emb: {label_emb} is invalid")
 
     logger.info(F'Start Clustering {levels}')
 
@@ -206,7 +219,7 @@ def spectral_clustering(affinity, n_clusters=8, n_components=None,
                                            random_state=random_state, n_init=n_init,
                                            size_min=size_min, size_max=size_max)
     elif assign_labels == 'neo-kmeans':
-        pass
+        raise ValueError(f"assign_labels: {assign_labels} is not currently supported.")
     else:
         labels = discretize(maps, random_state=random_state)
 
