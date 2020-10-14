@@ -63,6 +63,7 @@ def build_tree_by_level(
     n_components: int = None,
     overlap_ratio: float = 0.0,
     adj_th: int = None,
+    random_state: int = None,
 ):
     os.makedirs(os.path.split(groups_path)[0], exist_ok=True)
     logger.info('Clustering')
@@ -154,39 +155,47 @@ def build_tree_by_level(
         for node_i, node_f in q:
             if len(node_i) > max_leaf:
                 next_q += list(split_node(node_i, node_f, eps,
-                                          alg == 'random', overlap_ratio))
+                                          alg, overlap_ratio, random_state))
         q = next_q
     logger.info('Finish Clustering')
 
 
 def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
-               random: bool = False, overlap_ratio: float = 0.0):
+               alg: str = "kmeans", overlap_ratio: float = 0.0,
+               random_state: int = None):
     n = len(labels_i)
     n_overlap = int(n // 2 * overlap_ratio)
 
-    if random:
+    if alg == "random":
         partition = np.random.permutation(n)
         l_labels_i, r_labels_i = partition[:n//2 + n_overlap], partition[n//2 - n_overlap:]
 
         return (labels_i[l_labels_i], labels_f[l_labels_i]), (labels_i[r_labels_i], labels_f[r_labels_i])
+    elif alg == "kmeans":
+        c1, c2 = np.random.choice(np.arange(n), 2, replace=False)
+        old_dis, new_dis = -10000.0, -1.0
 
-    c1, c2 = np.random.choice(np.arange(n), 2, replace=False)
-    old_dis, new_dis = -10000.0, -1.0
+        if type(labels_f) == csr_matrix:
+            centers = labels_f[[c1, c2]].toarray()
+        else:
+            centers = labels_f[[c1, c2]]
 
-    if type(labels_f) == csr_matrix:
-        centers = labels_f[[c1, c2]].toarray()
+        l_labels_i, r_labels_i = None, None
+
+        while new_dis - old_dis >= eps:
+            dis = labels_f @ centers.T  # N, 2
+            partition = np.argsort(dis[:, 1] - dis[:, 0])
+            l_labels_i, r_labels_i = partition[:n//2 + n_overlap], partition[n//2 - n_overlap:]
+            old_dis, new_dis = new_dis, (dis[l_labels_i, 0].sum() + dis[r_labels_i, 1].sum()) / n
+            centers = normalize(np.asarray([np.squeeze(np.asarray(labels_f[l_labels_i].sum(axis=0))),
+                                            np.squeeze(np.asarray(labels_f[r_labels_i].sum(axis=0)))]))
+    elif alg == "kmeans_constrained":
+        _, labels, _ = k_means_constrained(labels_f, 2, random_state=random_state,
+                                           n_init=1, size_min=labels_f.shape[0] // 2)
+        l_labels_i = np.where(labels == 0)[0]
+        r_labels_i = np.where(labels == 1)[0]
     else:
-        centers = labels_f[[c1, c2]]
-
-    l_labels_i, r_labels_i = None, None
-
-    while new_dis - old_dis >= eps:
-        dis = labels_f @ centers.T  # N, 2
-        partition = np.argsort(dis[:, 1] - dis[:, 0])
-        l_labels_i, r_labels_i = partition[:n//2 + n_overlap], partition[n//2 - n_overlap:]
-        old_dis, new_dis = new_dis, (dis[l_labels_i, 0].sum() + dis[r_labels_i, 1].sum()) / n
-        centers = normalize(np.asarray([np.squeeze(np.asarray(labels_f[l_labels_i].sum(axis=0))),
-                                        np.squeeze(np.asarray(labels_f[r_labels_i].sum(axis=0)))]))
+        raise ValueError(f"alg: {alg} is invalid")
     return (labels_i[l_labels_i], labels_f[l_labels_i]), (labels_i[r_labels_i], labels_f[r_labels_i])
 
 
