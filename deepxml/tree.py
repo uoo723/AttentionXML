@@ -26,6 +26,7 @@ from deepxml.data_utils import get_word_emb
 from deepxml.dataset import MultiLabelDataset, XMLDataset
 from deepxml.models import Model, XMLModel
 from deepxml.cluster import build_tree_by_level, MySpectralClustering
+from deepxml.evaluation import get_inv_propensity
 from deepxml.networks import *
 
 
@@ -74,12 +75,22 @@ class FastAttentionXML(object):
             groups = np.load(F'{self.groups_path}-Level-{level}.npy', allow_pickle=True)
             train_y, valid_y = self.get_mapping_y(groups, self.labels_num, train_y, valid_y)
             labels_num = len(groups)
+
+            if 'propensity' in self.data_cnf:
+                a = self.data_cnf['propensity']['a']
+                b = self.data_cnf['propensity']['b']
+                pos_weight = get_inv_propensity(train_y, a, b)
+            else:
+                pos_weight = None
+
             train_loader = DataLoader(MultiLabelDataset(train_x, train_y),
                                       model_cnf['train'][level]['batch_size'], num_workers=4, shuffle=True)
             valid_loader = DataLoader(MultiLabelDataset(valid_x, valid_y, training=False),
                                       model_cnf['valid']['batch_size'], num_workers=4)
             model = Model(AttentionRNN, labels_num=labels_num, model_path=F'{self.model_path}-Level-{level}',
-                          emb_init=self.emb_init, **data_cnf['model'], **model_cnf['model'])
+                          emb_init=self.emb_init, pos_weight=pos_weight,
+                          **data_cnf['model'], **model_cnf['model'])
+
             if self.load_model or not os.path.exists(model.model_path):
                 logger.info(F'Training Level-{level}, Number of Labels: {labels_num}')
                 model.train(train_loader, valid_loader, **model_cnf['train'][level])
@@ -128,6 +139,14 @@ class FastAttentionXML(object):
                 groups, labels_num = None, train_y.shape[1]
                 last_groups = np.load(F'{self.groups_path}-Level-{level-1}.npy', allow_pickle=True)
 
+
+            if 'propensity' in self.data_cnf:
+                a = self.data_cnf['propensity']['a']
+                b = self.data_cnf['propensity']['b']
+                pos_weight = get_inv_propensity(train_y, a, b)
+            else:
+                pos_weight = None
+
             train_loader = DataLoader(XMLDataset(train_x, train_y, labels_num=labels_num,
                                                  groups=last_groups, group_labels=group_candidates),
                                       model_cnf['train'][level]['batch_size'], num_workers=4, shuffle=True)
@@ -137,7 +156,9 @@ class FastAttentionXML(object):
                                                  group_scores=group_scores),
                                       model_cnf['valid']['batch_size'], num_workers=4)
             model = XMLModel(network=FastAttentionRNN, labels_num=labels_num, emb_init=self.emb_init,
-                             model_path=F'{self.model_path}-Level-{level}', **data_cnf['model'], **model_cnf['model'])
+                             model_path=F'{self.model_path}-Level-{level}',
+                             pos_weight=pos_weight,
+                             **data_cnf['model'], **model_cnf['model'])
             if self.load_model or not os.path.exists(model.model_path):
                 last_model = self.get_last_models(level - 1)
 

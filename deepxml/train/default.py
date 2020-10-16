@@ -10,6 +10,7 @@ from deepxml.data_utils import get_data, get_mlb, output_res
 from deepxml.networks import AttentionRNN
 from deepxml.models import Model
 from deepxml.tree import FastAttentionXML
+from deepxml.evaluation import get_inv_propensity
 
 from .utils import load_dataset, log_config, log_results
 
@@ -39,15 +40,24 @@ def default_train(
 
     logger.info('Training')
     if 'cluster' not in model_cnf:
+        if 'propensity' in data_cnf:
+            a = data_cnf['propensity']['a']
+            b = data_cnf['propensity']['b']
+            pos_weight = get_inv_propensity(train_y, a, b)
+        else:
+            pos_weight = None
+
         train_loader = DataLoader(
             MultiLabelDataset(train_x, train_y),
             model_cnf['train']['batch_size'], shuffle=True, num_workers=4)
         valid_loader = DataLoader(
             MultiLabelDataset(valid_x, valid_y, training=False),
             model_cnf['valid']['batch_size'], num_workers=4)
+
         model = Model(
             network=AttentionRNN, labels_num=labels_num, model_path=model_path,
-            emb_init=emb_init, **data_cnf['model'], **model_cnf['model'])
+            emb_init=emb_init, pos_weight=pos_weight,
+            **data_cnf['model'], **model_cnf['model'])
 
         if not dry_run:
             model.train(train_loader, valid_loader, **model_cnf['train'])

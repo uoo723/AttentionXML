@@ -30,11 +30,11 @@ class Model(object):
 
     """
     def __init__(self, network, model_path, gradient_clip_value=5.0, device_ids=None,
-                 load_model=False, **kwargs):
+                 load_model=False, pos_weight=None, **kwargs):
         self.model = nn.DataParallel(network(**kwargs).cuda(), device_ids=device_ids)
         # self.model = network(**kwargs).cuda()
         self.device_ids = device_ids
-        self.loss_fn = nn.BCEWithLogitsLoss()
+        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         self.model_path, self.state = model_path, {}
         os.makedirs(os.path.split(self.model_path)[0], exist_ok=True)
         self.gradient_clip_value, self.gradient_norm_queue = gradient_clip_value, deque([np.inf], maxlen=5)
