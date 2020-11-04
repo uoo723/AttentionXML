@@ -62,6 +62,7 @@ def build_tree_by_level(
     groups_path: str,
     n_components: int = None,
     overlap_ratio: float = 0.0,
+    head_split_ratio: float = 0.0,
     adj_th: int = None,
     random_state: int = None,
 ):
@@ -122,6 +123,18 @@ def build_tree_by_level(
     else:
         raise ValueError(f"label_emb: {label_emb} is invalid")
 
+    head_labels = None
+
+    if head_split_ratio > 0:
+        logger.info(f"head ratio: {head_split_ratio}")
+        train_labels = np.load(sparse_data_y, allow_pickle=True)
+        train_y = mlb.transform(train_labels)
+        counts = np.sum(train_y, axis=0).A1
+        cnt_indices = np.argsort(counts)[::-1]
+        head_labels = cnt_indices[:int(len(counts) * head_split_ratio)]
+        logger.info(f"# of head labels: {len(head_labels)}")
+        logger.info(f"# of tail labels: {len(counts) - len(head_labels)}")
+
     logger.info(F'Start Clustering {levels}')
 
     levels, q = [2**x for x in levels], None
@@ -146,7 +159,38 @@ def build_tree_by_level(
             logger.info(f'# of node: {len(a)}, # of overlapped: {len(a & b)}')
             logger.info(f'max # of node: {max(n_nodes)}')
             logger.info(f'average # of node: {np.mean(n_nodes)}')
+
+            if head_labels is not None:
+                logger.info(f"Getting Cluster Centers")
+                centers = np.array(
+                    [normalize(labels_f[idx].sum(axis=0, keepdims=True)).squeeze()
+                    for idx in groups]
+                )
+
+                # Find tail groups
+                # If all labels in a group are not in head labels,
+                # this group is tail group
+                tail_groups = []
+                for i, group in enumerate(groups):
+                    is_tail_group = True
+                    for label in group:
+                        if label in head_labels:
+                            is_tail_group = False
+                            break
+                    if is_tail_group:
+                        tail_groups.append(i)
+                tail_groups = np.array(tail_groups)
+
+                nearest_head_labels = np.argmax(
+                    centers[tail_groups] @ labels_f[head_labels].T, axis=1)
+
+                for i, tail_group in enumerate(tail_groups):
+                    head_label = head_labels[nearest_head_labels[i]]
+                    group = groups[tail_group]
+                    groups[tail_group] = np.append(groups[tail_group], head_label)
+
             np.save(F'{groups_path}-Level-{level}.npy', groups)
+
             if level == len(levels) - 1:
                 break
         else:
@@ -162,9 +206,10 @@ def build_tree_by_level(
 
 def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
                alg: str = "kmeans", overlap_ratio: float = 0.0,
-               random_state: int = None):
+               random_state: int = None, return_centers: bool = False):
     n = len(labels_i)
     n_overlap = int(n // 2 * overlap_ratio)
+    centers = None
 
     if alg == "random":
         partition = np.random.permutation(n)
@@ -196,7 +241,13 @@ def split_node(labels_i: np.ndarray, labels_f: csr_matrix, eps: float,
         r_labels_i = np.where(labels == 1)[0]
     else:
         raise ValueError(f"alg: {alg} is invalid")
-    return (labels_i[l_labels_i], labels_f[l_labels_i]), (labels_i[r_labels_i], labels_f[r_labels_i])
+
+    ret = (labels_i[l_labels_i], labels_f[l_labels_i]), (labels_i[r_labels_i], labels_f[r_labels_i])
+
+    if return_centers and centers is not None:
+        ret += centers,
+
+    return ret
 
 
 def neo_kmeans():
