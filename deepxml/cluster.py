@@ -10,6 +10,7 @@ import os
 import warnings
 
 import numpy as np
+import scipy.sparse as sp
 
 from functools import reduce
 from contextlib import redirect_stderr
@@ -162,10 +163,16 @@ def build_tree_by_level(
 
             if head_labels is not None:
                 logger.info(f"Getting Cluster Centers")
-                centers = np.array(
-                    [normalize(labels_f[idx].sum(axis=0, keepdims=True)).squeeze()
-                    for idx in groups]
-                )
+                if sp.issparse(labels_f):
+                    centers = sp.vstack([
+                        normalize(csr_matrix(labels_f[idx].sum(axis=0)))
+                        for idx in groups
+                    ])
+                else:
+                    centers = np.array(
+                        [normalize(labels_f[idx].sum(axis=0, keepdims=True)).squeeze()
+                        for idx in groups]
+                    )
 
                 # Find tail groups
                 # If all labels in a group are not in head labels,
@@ -183,6 +190,9 @@ def build_tree_by_level(
 
                 nearest_head_labels = np.argmax(
                     centers[tail_groups] @ labels_f[head_labels].T, axis=1)
+
+                if hasattr(nearest_head_labels, 'A1'):
+                    nearest_head_labels = nearest_head_labels.A1
 
                 for i, tail_group in enumerate(tail_groups):
                     head_label = head_labels[nearest_head_labels[i]]
