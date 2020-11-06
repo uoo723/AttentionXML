@@ -94,7 +94,7 @@ def build_tree_by_level(
             train_x = train_x[indices]
             train_y = train_y[indices]
 
-        labels_f = _get_labels_f(emb_init, train_x, train_y)
+        labels_f = normalize(_get_labels_f(emb_init, train_x, train_y))
 
     elif label_emb == 'spectral':
         _, sparse_labels = get_sparse_feature(sparse_data_x, sparse_data_y)
@@ -120,6 +120,7 @@ def build_tree_by_level(
         labels_f = spectral_embedding(adj, n_components=n_components,
                                       norm_laplacian=adj_th is None,
                                       eigen_solver='amg', drop_first=False)
+        labels_f = normalize(labels_f)
 
     else:
         raise ValueError(f"label_emb: {label_emb} is invalid")
@@ -165,13 +166,12 @@ def build_tree_by_level(
                 logger.info(f"Getting Cluster Centers")
                 if sp.issparse(labels_f):
                     centers = sp.vstack([
-                        normalize(csr_matrix(labels_f[idx].sum(axis=0)))
+                        normalize(csr_matrix(labels_f[idx].mean(axis=0)))
                         for idx in groups
                     ])
                 else:
-                    centers = np.array(
-                        [normalize(labels_f[idx].sum(axis=0, keepdims=True)).squeeze()
-                        for idx in groups]
+                    centers = np.vstack(
+                        [normalize(labels_f[idx].mean(axis=0)) for idx in groups]
                     )
 
                 # Find tail groups
