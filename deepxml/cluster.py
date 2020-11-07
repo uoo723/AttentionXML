@@ -170,9 +170,10 @@ def build_tree_by_level(
                         for idx in groups
                     ])
                 else:
-                    centers = np.vstack(
-                        [normalize(labels_f[idx].mean(axis=0)) for idx in groups]
-                    )
+                    centers = np.vstack([
+                        normalize(labels_f[idx].mean(axis=0, keepdims=True))
+                        for idx in groups
+                    ])
 
                 # Find tail groups
                 # If all labels in a group are not in head labels,
