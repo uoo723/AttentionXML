@@ -10,6 +10,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from collections import deque
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -25,16 +26,51 @@ from deepxml.optimizers import *
 __all__ = ['Model', 'XMLModel']
 
 
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=1.0, weight=None, reduction='mean', pos_weight=None):
+        super(FocalLoss, self).__init__()
+        self.weight = weight
+        self.pos_weight = pos_weight
+        self.gamma = gamma
+        self.reduction = reduction
+
+        if reduction not in ['mean', 'sum', 'none']:
+            raise ValueError(f"reduction must be `mean` or `sum` or `none`")
+
+    def forward(self, input, target):
+        loss = F.binary_cross_entropy_with_logits(input, target,
+                                                  self.weight,
+                                                  pos_weight=self.pos_weight,
+                                                  reduction='none')
+        pt = torch.exp(-loss)
+        f_loss = (1 - pt) ** self.gamma * loss
+
+        if self.reduction == 'mean':
+            return torch.mean(f_loss)
+        elif self.reduction == 'sum':
+            return torch.sum(f_loss)
+        else:
+            return f_loss
+
+
 class Model(object):
     """
 
     """
     def __init__(self, network, model_path, gradient_clip_value=5.0, device_ids=None,
-                 load_model=False, pos_weight=None, **kwargs):
+                 load_model=False, pos_weight=None, loss_name='bce', gamma=1.0,
+                 **kwargs):
         self.model = nn.DataParallel(network(**kwargs).cuda(), device_ids=device_ids)
         # self.model = network(**kwargs).cuda()
         self.device_ids = device_ids
-        self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+        if loss_name == 'bce':
+            self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        elif loss_name == 'focal':
+            self.loss_fn = FocalLoss(pos_weight=pos_weight, gamma=gamma)
+        else:
+            raise ValueError(f"loss_name must be `bce` or `focal`")
+
         self.model_path, self.state = model_path, {}
         os.makedirs(os.path.split(self.model_path)[0], exist_ok=True)
         self.gradient_clip_value, self.gradient_norm_queue = gradient_clip_value, deque([np.inf], maxlen=5)

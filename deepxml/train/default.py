@@ -54,9 +54,16 @@ def default_train(
             MultiLabelDataset(valid_x, valid_y, training=False),
             model_cnf['valid']['batch_size'], num_workers=4)
 
+        if 'loss' in model_cnf:
+            gamma = model_cnf['loss'].get('gamma', 1.0)
+            loss_name = model_cnf['loss']['name']
+        else:
+            gamma = None
+            loss_name = 'bce'
+
         model = Model(
             network=AttentionRNN, labels_num=labels_num, model_path=model_path,
-            emb_init=emb_init, pos_weight=pos_weight,
+            emb_init=emb_init, pos_weight=pos_weight, loss_name=loss_name, gamma=gamma,
             **data_cnf['model'], **model_cnf['model'])
 
         if not dry_run:
@@ -90,10 +97,17 @@ def default_eval(
             model_cnf['predict']['batch_size'],
             num_workers=4)
 
+        if 'loss' in model_cnf:
+            gamma = model_cnf['loss'].get('gamma', 1.0)
+            loss_name = model_cnf['loss']['name']
+        else:
+            gamma = None
+            loss_name = 'bce'
+
         model = Model(
             network=AttentionRNN, labels_num=labels_num,
             model_path=model_path, emb_init=emb_init,
-            load_model=True,
+            load_model=True, loss_name=loss_name, gamma=gamma,
             **data_cnf['model'], **model_cnf['model'])
 
         scores, labels = model.predict(test_loader, k=model_cnf['predict'].get('k', 100))
