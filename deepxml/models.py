@@ -64,6 +64,9 @@ class Model(object):
         # self.model = network(**kwargs).cuda()
         self.device_ids = device_ids
 
+        if pos_weight is not None:
+            pos_weight = torch.from_numpy(pos_weight).float().cuda()
+
         if loss_name == 'bce':
             self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         elif loss_name == 'focal':
