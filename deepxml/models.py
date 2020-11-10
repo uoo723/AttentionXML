@@ -96,6 +96,7 @@ class Model(object):
         #     scaled_loss.backward()
 
         loss.backward()
+
         self.clip_gradient()
         self.optimizer.step(closure=None)
         return loss.item()
