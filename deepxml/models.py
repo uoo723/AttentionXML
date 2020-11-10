@@ -27,7 +27,7 @@ __all__ = ['Model', 'XMLModel']
 
 
 class FocalLoss(nn.Module):
-    def __init__(self, gamma=1.0, weight=None, reduction='mean', pos_weight=None):
+    def __init__(self, gamma=2, weight=None, reduction='mean', pos_weight=None):
         super(FocalLoss, self).__init__()
         self.weight = weight
         self.pos_weight = pos_weight
@@ -39,15 +39,17 @@ class FocalLoss(nn.Module):
 
     def forward(self, input, target):
         loss = F.binary_cross_entropy_with_logits(input, target,
+                                                  weight=self.weight,
+                                                  pos_weight=self.pos_weight,
                                                   reduction='none')
         pt = torch.exp(-loss)
         f_loss = (1 - pt) ** self.gamma * loss
 
-        if self.weight is not None:
-            f_loss = self.weight.unsqueeze(1) * f_loss
+        # if self.weight is not None:
+        #     f_loss = self.weight.unsqueeze(1) * f_loss
 
-        if self.pos_weight is not None:
-            f_loss = self.pos_weight * f_loss
+        # if self.pos_weight is not None:
+        #     f_loss = self.pos_weight * f_loss
 
         if self.reduction == 'mean':
             return torch.mean(f_loss)
