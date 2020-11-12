@@ -5,6 +5,7 @@ Created on 2018/12/29
 @author yrh
 
 """
+import math
 
 import numpy as np
 import torch
@@ -13,8 +14,14 @@ import torch.nn.functional as F
 
 __all__ = [
     'Embedding', 'LSTMEncoder', 'MLAttention', 'AttentionWeights',
-    'FastMLAttention', 'MLLinear', 'GraphConvolution',
+    'FastMLAttention', 'MLLinear', 'GraphConvolution', "Identity",
+    'RankBlock',
 ]
+
+
+class Identity(nn.Module):
+    def forward(self, inputs):
+        return inputs
 
 
 class Embedding(nn.Module):
@@ -144,3 +151,33 @@ class MLLinear(nn.Module):
         for linear in self.linear:
             linear_out = F.relu(linear(linear_out))
         return torch.squeeze(self.output(linear_out), -1)
+
+
+# https://openreview.net/pdf?id=hUAmiQCeUGm
+# RankNet
+class RankBlock(nn.Module):
+    activations = {
+        'relu': F.relu,
+        'tanh': F.tanh,
+        'sigmoid': F.sigmoid,
+        'identity': lambda x: x,
+        None: lambda x: x,
+    }
+
+    def __init__(self, hidden_size, output_size, activation='relu'):
+        super(RankBlock, self).__init__()
+        self.weight1 = nn.Parameter(torch.Tensor(output_size, hidden_size))
+        self.weight2 = nn.Parameter(torch.Tensor(hidden_size, output_size))
+        self.activation = self.activations[activation]
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.kaiming_uniform_(self.weight1, a=math.sqrt(5))
+        nn.init.kaiming_uniform_(self.weight2, a=math.sqrt(5))
+
+    def forward(self, input):
+        ret = self.activation(input @ self.weight1)
+        ret = ret @ self.weight2
+        ret = ret + input
+        return  ret
+

@@ -32,6 +32,7 @@ def default_train(
     mlb = get_mlb(data_cnf['labels_binarizer'], np.hstack((
         train_labels, valid_labels,
     )))
+    freq = mlb.transform(np.hstack([train_labels, valid_labels])).sum(axis=0).A1
     train_y, valid_y = mlb.transform(train_labels), mlb.transform(valid_labels)
     labels_num = len(mlb.classes_)
     logger.info(F'Number of Labels: {labels_num}')
@@ -55,7 +56,7 @@ def default_train(
             model_cnf['valid']['batch_size'], num_workers=4)
 
         if 'loss' in model_cnf:
-            gamma = model_cnf['loss'].get('gamma', 1.0)
+            gamma = model_cnf['loss'].get('gamma', 2.0)
             loss_name = model_cnf['loss']['name']
         else:
             gamma = None
@@ -64,7 +65,7 @@ def default_train(
         model = Model(
             network=AttentionRNN, labels_num=labels_num, model_path=model_path,
             emb_init=emb_init, pos_weight=pos_weight, loss_name=loss_name, gamma=gamma,
-            **data_cnf['model'], **model_cnf['model'])
+            freq=freq, **data_cnf['model'], **model_cnf['model'])
 
         if not dry_run:
             model.train(train_loader, valid_loader, **model_cnf['train'])
