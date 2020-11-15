@@ -94,9 +94,14 @@ class GroupRankingLoss(nn.Module):
     def forward(self, input, target):
         input = torch.sigmoid(input)
         sorted_input, _ = input.sort(descending=True)
-        sorted_target, _ = target.sort(descending=True)
-        count = (target == 1).sum(dim=1).float()
-        a = sorted_input * sorted_target
-        b = input * target
-        loss = (a.sum(dim=-1) - b.sum(dim=-1)) / count
+        counts = target.sum(dim=-1)
+        i = torch.stack([torch.arange(counts.size(0), dtype=torch.long,
+                                      device=target.device), counts.long() - 1])
+        lamda = sorted_input[i[0, :], i[1, :]]
+
+        a = lamda * counts
+        b = torch.clamp(input - lamda.unsqueeze(dim=-1), min=0).sum(dim=-1)
+        c = (input * target).sum(dim=-1)
+
+        loss = (a + b - c) / counts
         return loss.mean()
