@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-__all__ = ['FocalLoss', "RankingLoss", "CombinedLoss"]
+__all__ = ['FocalLoss', "RankingLoss", "CombinedLoss", "GroupRankingLoss"]
 
 
 class FocalLoss(nn.Module):
@@ -91,4 +91,11 @@ class CombinedLoss(nn.Module):
 # Group wise ranking loss
 class GroupRankingLoss(nn.Module):
     def forward(self, input, target):
-        pass
+        input = torch.sigmoid(input)
+        sorted_input, _ = input.sort(descending=True)
+        sorted_target, _ = target.sort(descending=True)
+        count = (target == 1).sum(dim=1).float()
+        a = sorted_input * sorted_target
+        b = input * target
+        loss = (a.sum(dim=-1) - b.sum(dim=-1)) / count
+        return loss.mean()

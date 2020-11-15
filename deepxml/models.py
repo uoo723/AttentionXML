@@ -48,8 +48,11 @@ class Model(object):
         elif loss_name == 'bce+ranking':
             self.loss_fn = CombinedLoss(nn.BCEWithLogitsLoss(pos_weight=pos_weight),
                                         RankingLoss(freq))
+        elif loss_name == 'group_ranking':
+            self.loss_fn = GroupRankingLoss()
         else:
-            raise ValueError(f"loss_name must be `bce` or `focal`")
+            raise ValueError(f"loss_name must be `bce` or `focal` or `bce+ranking"
+                             f" or group_ranking")
 
         self.model_path, self.state = model_path, {}
         os.makedirs(os.path.split(self.model_path)[0], exist_ok=True)
