@@ -50,6 +50,9 @@ class Model(object):
                                         RankingLoss(freq))
         elif loss_name == 'group_ranking':
             self.loss_fn = GroupRankingLoss()
+        elif loss_name == 'bce+group':
+            self.loss_fn = CombinedLoss(nn.BCEWithLogitsLoss(pos_weight=pos_weight),
+                                        GroupRankingLoss())
         else:
             raise ValueError(f"loss_name must be `bce` or `focal` or `bce+ranking"
                              f" or group_ranking")

@@ -54,6 +54,7 @@ class RankingLoss(nn.Module):
         self.c = c
 
     def forward(self, input, target):
+        input = torch.sigmoid(input)
         if not torch.is_tensor(self.freq):
             self.freq = torch.tensor(self.freq, device=input.device, dtype=torch.float32)
 
