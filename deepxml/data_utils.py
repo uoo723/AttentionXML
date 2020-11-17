@@ -22,7 +22,7 @@ from typing import Union, Iterable, Tuple
 
 
 __all__ = ['build_vocab', 'get_data', 'convert_to_binary', 'truncate_text', 'get_word_emb', 'get_mlb',
-           'get_sparse_feature', 'output_res']
+           'get_sparse_feature', 'output_res', 'mixup', 'MixUp']
 
 
 def build_vocab(texts: Iterable, w2v_model: Union[KeyedVectors, str], vocab_size=500000,
@@ -203,3 +203,22 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     values = torch.from_numpy(sparse_mx.data)
     shape = torch.Size(sparse_mx.shape)
     return torch.sparse.DoubleTensor(indices, values, shape)
+
+
+def mixup(x: torch.Tensor, lamda: int, indices: Iterable[int]):
+    return lamda * x + (1 - lamda) * x[indices]
+
+
+class MixUp:
+    def __init__(self, alpha=0.2):
+        self.m = torch.distributions.Beta(alpha, alpha)
+
+    def __call__(self, train_x: torch.Tensor, train_y: torch.Tensor = None):
+        lamda = self.m.sample()
+        indices = torch.randperm(train_x.size(0))
+        mixed_x = mixup(train_x, lamda, indices)
+        ret = mixed_x
+        if train_y is not None:
+            mixed_y = mixup(train_y, lamda, indices)
+            ret = (ret, mixed_y)
+        return ret

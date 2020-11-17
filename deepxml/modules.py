@@ -28,7 +28,8 @@ class Embedding(nn.Module):
     """
 
     """
-    def __init__(self, vocab_size=None, emb_size=None, emb_init=None, emb_trainable=True, padding_idx=0, dropout=0.2):
+    def __init__(self, vocab_size=None, emb_size=None, emb_init=None,
+                 emb_trainable=True, padding_idx=0, dropout=0.2):
         super(Embedding, self).__init__()
         if emb_init is not None:
             if vocab_size is not None:
@@ -45,7 +46,7 @@ class Embedding(nn.Module):
     def forward(self, inputs):
         emb_out = self.dropout(self.emb(inputs))
         lengths, masks = (inputs != self.padding_idx).sum(dim=-1), inputs != self.padding_idx
-        return emb_out[:, :lengths.max()], lengths, masks[:, :lengths.max()]
+        return emb_out[:, :inputs.size(-1)], lengths, masks[:, :inputs.size(-1)]
 
 
 class LSTMEncoder(nn.Module):

@@ -22,6 +22,7 @@ from deepxml.evaluation import get_p_5, get_n_5
 from deepxml.modules import *
 from deepxml.optimizers import *
 from deepxml.losses import *
+from deepxml.data_utils import MixUp, mixup
 
 
 __all__ = ['Model', 'XMLModel']
@@ -33,12 +34,19 @@ class Model(object):
     """
     def __init__(self, network, model_path, gradient_clip_value=5.0, device_ids=None,
                  load_model=False, pos_weight=None, loss_name='bce', gamma=2.0,
-                 freq=None, **kwargs):
+                 freq=None, mixup_opt=None, **kwargs):
+        self.mixup_c = None
+        if mixup_opt is not None:
+            logger.info('Mixup Enabled')
+            logger.info(mixup_opt)
+            self.mixup_c = MixUp(**mixup_opt)
+
         self.model = nn.DataParallel(network(**kwargs).cuda(), device_ids=device_ids)
         # self.model = network(**kwargs).cuda()
         self.device_ids = device_ids
 
         if pos_weight is not None:
+            logger.info('Inverse propensity weight enabled')
             pos_weight = torch.from_numpy(pos_weight).float().cuda()
 
         if loss_name == 'bce':
@@ -68,7 +76,14 @@ class Model(object):
     def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
         self.optimizer.zero_grad()
         self.model.train()
-        scores = self.model(train_x)
+
+        if self.mixup_c is not None:
+            emb, lengths, masks = self.model(train_x, return_emb=True)
+            emb, train_y = self.mixup_c(emb, train_y)
+            scores = self.model((emb, lengths, masks), pass_emb=True)
+        else:
+            scores = self.model(train_x)
+
         loss = self.loss_fn(scores, train_y)
 
         # with amp.scale_loss(loss, self.optimizer) as scaled_loss:
@@ -101,7 +116,7 @@ class Model(object):
                 self.swa_init()
             for i, (train_x, train_y) in enumerate(train_loader, 1):
                 global_step += 1
-                loss = self.train_step(train_x, train_y.cuda())
+                loss = self.train_step(train_x.cuda(), train_y.cuda())
                 if global_step % step == 0:
                     self.swa_step()
                     self.swap_swa_params()
