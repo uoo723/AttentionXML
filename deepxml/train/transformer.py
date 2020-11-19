@@ -10,11 +10,11 @@ from deepxml.models import TransformerXML
 from logzero import logger
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-from transformers import RobertaConfig, RobertaForSequenceClassification
+from transformers import RobertaForSequenceClassification
 
 from .utils import load_dataset, log_config, log_results
 
-MODEL_TYPE = {"roberta": (RobertaConfig, RobertaForSequenceClassification)}
+MODEL_TYPE = {"roberta": RobertaForSequenceClassification}
 
 
 def transformer_train(
@@ -68,10 +68,15 @@ def transformer_train(
         num_workers=4,
     )
 
-    config_cls, model_cls = MODEL_TYPE[model_cnf["model"]["base"]]
+    model_cls = MODEL_TYPE[model_cnf["model"]["base"]]
 
-    config = config_cls(num_labels=num_labels, **model_cnf["model"]["config"])
-    network = model_cls.from_pretrained(model_cnf["model"]["pretrained"], config=config)
+    network = model_cls.from_pretrained(
+        model_cnf["model"]["pretrained"], num_labels=num_labels
+    )
+
+    if model_cnf['model'].get('freeze_encoder', False):
+        for param in network.base_model.parameters():
+            param.requires_grad = False
 
     model = TransformerXML(
         model_path, network, **data_cnf["model"], **model_cnf["model"]
@@ -109,10 +114,11 @@ def transformer_eval(
         num_workers=4,
     )
 
-    config_cls, model_cls = MODEL_TYPE[model_cnf["model"]["base"]]
+    model_cls = MODEL_TYPE[model_cnf["model"]["base"]]
 
-    config = config_cls(num_labels=num_labels, **model_cnf["model"]["config"])
-    network = model_cls.from_pretrained(model_cnf["model"]["pretrained"], config=config)
+    network = model_cls.from_pretrained(
+        model_cnf["model"]["pretrained"], num_labels=num_labels
+    )
 
     model = TransformerXML(
         model_path, network, load_model=True, **data_cnf["model"], **model_cnf["model"]
