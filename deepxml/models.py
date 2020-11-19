@@ -7,22 +7,21 @@ Created on 2018/12/9
 """
 
 import os
+from collections import deque
+from typing import Mapping, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from collections import deque
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 from logzero import logger
-from typing import Optional, Mapping, Tuple
-# from apex import amp
+from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
-from deepxml.evaluation import get_p_5, get_n_5
+from deepxml.data_utils import MixUp
+from deepxml.evaluation import get_n_5, get_p_5
+from deepxml.losses import *
 from deepxml.modules import *
 from deepxml.optimizers import *
-from deepxml.losses import *
-from deepxml.data_utils import MixUp, mixup
 
 
 __all__ = ['Model', 'XMLModel']
@@ -238,3 +237,42 @@ class XMLModel(Model):
 
     def load_model(self):
         self.model.load_state_dict(torch.load(self.model_path, map_location='cuda:0'))
+
+
+class TransformerXML(Model):
+    def __init__(self, model_path, model, gradient_clip_value=5.0, device_ids=None,
+                 load_model=False, **kwargs):
+        if not isinstance(model, nn.DataParallel):
+            self.model = nn.DataParallel(model.cuda(), device_ids=device_ids)
+        else:
+            self.model = model
+
+        self.model_path = model_path
+        self.state = {}
+
+        self.loss_fn = nn.BCEWithLogitsLoss()
+
+        os.makedirs(os.path.split(self.model_path)[0], exist_ok=True)
+        self.gradient_clip_value, self.gradient_norm_queue = gradient_clip_value, deque([np.inf], maxlen=5)
+        self.optimizer = None
+
+        if load_model and os.path.exists(model_path):
+            self.load_model()
+
+
+    def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
+        self.optimizer.zero_grad()
+        self.model.train()
+
+        logits = self.model(train_x)[0]
+        loss = self.loss_fn(logits, train_y)
+
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+
+    def predict_step(self, data_x: torch.Tensor, k: int):
+        self.model.eval()
+        with torch.no_grad():
+            scores, labels = torch.topk(self.model(data_x)[0], k)
+            return torch.sigmoid(scores).cpu(), labels.cpu()

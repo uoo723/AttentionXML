@@ -26,10 +26,13 @@ from deepxml.data_utils import get_word_emb
 from deepxml.train import (
     default_train, default_eval, splitting_head_tail_train, splitting_head_tail_eval,
     random_forest_train, random_forest_eval, spectral_clustering_train,
-    spectral_clustering_eval,
+    spectral_clustering_eval, transformer_train, transformer_eval,
 )
 
 from deepxml.train.utils import log_tag
+
+
+TRANSFORMER_MODEL_NAMES = ['RobertaXML']
 
 
 def set_seed(seed):
@@ -71,6 +74,7 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
     is_split_head_tail = 'split_head_tail' in data_cnf
     is_random_forest = 'random_forest' in model_cnf
     is_spectral_clustering = 'spectral_clustering' in model_cnf
+    is_transformer_model = model_name in TRANSFORMER_MODEL_NAMES
 
     if is_split_head_tail:
         split_ratio = data_cnf['split_head_tail']
@@ -86,7 +90,13 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
         pass
 
     if mode is None or mode == 'train':
-        if is_split_head_tail:
+        if is_transformer_model:
+            transformer_train(
+                data_cnf, data_cnf_path, model_cnf, model_cnf_path, model_path,
+                dry_run,
+            )
+
+        elif is_split_head_tail:
             head_model, tail_model, head_labels, tail_labels = splitting_head_tail_train(
                 data_cnf, data_cnf_path, model_cnf, model_cnf_path, emb_init,
                 model_path, tree_id, output_suffix, dry_run, split_ratio,
@@ -114,7 +124,12 @@ def main(data_cnf, model_cnf, mode, tree_id, output_suffix, dry_run):
         log_tag(dry_run, model_name, data_name, output_suffix)
 
     if mode is None or mode == 'eval':
-        if is_split_head_tail:
+        if is_transformer_model:
+            transformer_eval(
+                data_cnf, model_cnf, data_name, model_name, model_path, tree_id,
+                output_suffix, dry_run,
+            )
+        elif is_split_head_tail:
             splitting_head_tail_eval(
                 data_cnf, model_cnf, data_name, model_name, model_path, emb_init,
                 tree_id, output_suffix, dry_run, split_ratio, head_labels, tail_labels,
