@@ -21,15 +21,28 @@ def transformer_train(
     data_cnf, data_cnf_path, model_cnf, model_cnf_path, model_path, dry_run,
 ):
     train_x, train_labels = load_dataset(data_cnf)
+    train_input_ids = train_x["input_ids"]
+    train_atten_mask = train_x["attention_mask"]
 
     if "size" in data_cnf["valid"]:
-        train_x, valid_x, train_labels, valid_labels = train_test_split(
-            train_x, train_labels, test_size=data_cnf["valid"]["size"],
+        (
+            train_x,
+            valid_x,
+            train_atten_mask,
+            valid_atten_mask,
+            train_labels,
+            valid_labels,
+        ) = train_test_split(
+            train_input_ids,
+            train_atten_mask,
+            train_labels,
+            test_size=data_cnf["valid"]["size"],
         )
     else:
         valid_x, valid_labels = get_data(
             data_cnf["valid"]["texts"], data_cnf["valid"]["labels"]
         )
+        valid_atten_mask = None
 
     mlb = get_mlb(
         data_cnf["labels_binarizer"], np.hstack((train_labels, valid_labels,))
@@ -44,13 +57,13 @@ def transformer_train(
     logger.info("Training")
 
     train_loader = DataLoader(
-        MultiLabelDataset(train_x, train_y),
+        MultiLabelDataset(train_x, train_y, train_atten_mask),
         model_cnf["train"]["batch_size"],
         shuffle=True,
         num_workers=4,
     )
     valid_loader = DataLoader(
-        MultiLabelDataset(valid_x, valid_y, training=False),
+        MultiLabelDataset(valid_x, valid_y, valid_atten_mask, training=False),
         model_cnf["valid"]["batch_size"],
         num_workers=4,
     )
@@ -84,11 +97,16 @@ def transformer_eval(
     mlb = get_mlb(data_cnf["labels_binarizer"])
     num_labels = len(mlb.classes_)
     test_x, _ = get_data(data_cnf["test"]["texts"], None)
+    test_atten_mask = test_x["attention_mask"]
+    test_x = test_x["input_ids"]
+
     logger.info(f"Size of Test Set: {len(test_x):,}")
 
     logger.info("Predicting")
     test_loader = DataLoader(
-        MultiLabelDataset(test_x), model_cnf["predict"]["batch_size"], num_workers=4
+        MultiLabelDataset(test_x, attention_mask=test_atten_mask),
+        model_cnf["predict"]["batch_size"],
+        num_workers=4,
     )
 
     config_cls, model_cls = MODEL_TYPE[model_cnf["model"]["base"]]

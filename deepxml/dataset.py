@@ -26,16 +26,21 @@ class MultiLabelDataset(Dataset):
     """
 
     """
-    def __init__(self, data_x: TDataX, data_y: TDataY = None, training=True):
+    def __init__(self, data_x: TDataX, data_y: TDataY = None,
+                 attention_mask: TDataX = None, training=True):
         self.data_x, self.data_y, self.training = data_x, data_y, training
+        self.attention_mask = attention_mask
 
     def __getitem__(self, item):
-        data_x = self.data_x[item]
+        ret = self.data_x[item]
+        if self.attention_mask is not None:
+            ret = (ret, self.attention_mask[item])
+
         if self.training and self.data_y is not None:
             data_y = self.data_y[item].toarray().squeeze(0).astype(np.float32)
-            return data_x, data_y
-        else:
-            return data_x
+            ret = (*ret, data_y) if isinstance(ret, tuple) else (ret, data_y)
+
+        return ret
 
     def __len__(self):
         return len(self.data_x)

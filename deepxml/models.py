@@ -73,6 +73,9 @@ class Model(object):
            self.load_model()
 
     def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
+        train_x = train_x.cuda()
+        train_y = train_y.cuda()
+
         self.optimizer.zero_grad()
         self.model.train()
 
@@ -113,13 +116,17 @@ class Model(object):
         for epoch_idx in range(nb_epoch):
             if epoch_idx == swa_warmup:
                 self.swa_init()
-            for i, (train_x, train_y) in enumerate(train_loader, 1):
+            for i, train_inputs in enumerate(train_loader, 1):
                 global_step += 1
-                loss = self.train_step(train_x.cuda(), train_y.cuda())
+                loss = self.train_step(*train_inputs)
                 if global_step % step == 0:
                     self.swa_step()
                     self.swap_swa_params()
-                    labels = np.concatenate([self.predict_step(valid_x, k)[1] for valid_x in valid_loader])
+                    labels = np.concatenate([
+                        self.predict_step(
+                            *valid_x if isinstance(valid_x, tuple)
+                            else valid_x, k)[1] for valid_x in valid_loader
+                    ])
                     targets = valid_loader.dataset.data_y
                     p5, n5 = get_p_5(labels, targets), get_n_5(labels, targets)
                     if n5 > best_n5:
@@ -136,8 +143,10 @@ class Model(object):
 
     def predict(self, data_loader: DataLoader, k=100, desc='Predict', **kwargs):
         self.load_model()
-        scores_list, labels_list = zip(*(self.predict_step(data_x, k)
-                                         for data_x in tqdm(data_loader, desc=desc, leave=False)))
+        scores_list, labels_list = zip(*(
+            self.predict_step(
+                *data_x if isinstance(data_x, tuple) else data_x, k
+            ) for data_x in tqdm(data_loader, desc=desc, leave=False)))
         return np.concatenate(scores_list), np.concatenate(labels_list)
 
     def save_model(self):
@@ -260,19 +269,27 @@ class TransformerXML(Model):
             self.load_model()
 
 
-    def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
+    def train_step(self, train_x: torch.Tensor, attention_mask: torch.Tensor,
+                   train_y: torch.Tensor):
+        train_x = train_x.cuda()
+        attention_mask = attention_mask.cuda()
+        train_y = train_y.cuda()
+
         self.optimizer.zero_grad()
         self.model.train()
 
-        logits = self.model(train_x)[0]
+        logits = self.model(train_x, attention_mask)[0]
         loss = self.loss_fn(logits, train_y)
 
         loss.backward()
         self.optimizer.step()
         return loss.item()
 
-    def predict_step(self, data_x: torch.Tensor, k: int):
+    def predict_step(self, data_x: torch.Tensor, attention_mask: torch.Tensor, k: int):
+        data_x = data_x.cuda()
+        attention_mask = attention_mask.cuda()
+
         self.model.eval()
         with torch.no_grad():
-            scores, labels = torch.topk(self.model(data_x)[0], k)
+            scores, labels = torch.topk(self.model(data_x, attention_mask)[0], k)
             return torch.sigmoid(scores).cpu(), labels.cpu()

@@ -37,17 +37,19 @@ def main(text_path, tokenized_path, model_name):
     with open(text_path, "r") as fp:
         lines = fp.readlines()
 
-    tokenized = np.concatenate(
-        [
-            tokenizer(line, truncation=True, padding="max_length", return_tensors="np")[
-                "input_ids"
-            ]
-            for line in tqdm(lines, desc="tokenized...")
-        ]
-    )
+    input_ids = []
+    attention_mask = []
+
+    for line in tqdm(lines, desc='Tokenized...'):
+        inputs = tokenizer(line, truncation=True, padding="max_length", return_tensors="np")
+        input_ids.append(inputs['input_ids'])
+        attention_mask.append(inputs['attention_mask'])
+
+    input_ids = np.concatenate(input_ids)
+    attention_mask = np.concatenate(attention_mask)
 
     logger.info("Save tokenized input")
-    np.save(tokenized_path, tokenized)
+    np.savez(tokenized_path, input_ids=input_ids, attention_mask=attention_mask)
 
 
 if __name__ == "__main__":
