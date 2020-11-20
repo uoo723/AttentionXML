@@ -124,7 +124,7 @@ class Model(object):
                     self.swap_swa_params()
                     labels = []
                     for valid_x in valid_loader:
-                        if isinstance(valid_x, tuple):
+                        if isinstance(valid_x, (list, tuple)):
                             labels.append(self.predict_step(*valid_x, k)[1])
                         else:
                             labels.append(self.predict_step(valid_x, k)[1])
@@ -148,7 +148,7 @@ class Model(object):
         scores_list = []
         labels_list = []
         for data_x in tqdm(data_loader, desc=desc, leave=False):
-            if isinstance(data_x, tuple):
+            if isinstance(data_x, (list, tuple)):
                 outputs = self.predict_step(*data_x, k)
             else:
                 outputs = self.predict_step(data_x, k)
