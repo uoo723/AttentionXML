@@ -12,6 +12,10 @@ RUN conda install -y python=3.7 conda && \
 	conda install pillow==6.2.1 && \
 	conda clean -a -y
 
+RUN apt update && \
+	apt install -y build-essential && \
+	rm -rf /var/lib/apt/lists/*
+
 RUN pip install --upgrade pip setuptools wheel --no-cache-dir && \
 	pip install --ignore-installed -r requirements.txt --no-cache-dir
 
