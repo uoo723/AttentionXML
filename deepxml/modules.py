@@ -182,3 +182,37 @@ class RankBlock(nn.Module):
         ret = ret + input
         return  ret
 
+
+# https://github.com/tkipf/pygcn/blob/master/pygcn/layers.py
+class GraphConvolution(nn.Module):
+    """GCN layer"""
+
+    def __init__(self, in_features, out_features, bias=True):
+        super(GraphConvolution, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(torch.DoubleTensor(in_features, out_features))
+        if bias:
+            self.bias = nn.Parameter(torch.DoubleTensor(out_features))
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameter()
+
+    def reset_parameter(self):
+        stdv = 1. / np.sqrt(self.weight.size(1))
+        self.weight.data.uniform_(-stdv, stdv)
+        if self.bias is not None:
+            self.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, input, adj):
+        # support = torch.mm(input, self.weight)
+        support = input @ self.weight
+        output = torch.spmm(adj, support)
+        # output = adj @ support
+        if self.bias is not None:
+            return output + self.bias
+        else:
+            return output
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} ({self.in_features} -> {self.out_features}"
