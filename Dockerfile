@@ -1,4 +1,5 @@
-FROM pytorch/pytorch:1.0.1-cuda10.0-cudnn7-runtime
+FROM pytorch/pytorch:1.7.0-cuda11.0-cudnn8-runtime
+
 WORKDIR /tmp
 COPY requirements.txt requirements.txt
 
@@ -7,7 +8,7 @@ COPY requirements.txt requirements.txt
 # 	rm -rf /var/lib/apt/lists/*
 
 RUN conda install -y python=3.7 conda && \
-	conda install -y pytorch=1.0.1 -c pytorch && \
+	conda install -y pytorch==1.7.0 -c pytorch && \
 	conda install pillow==6.2.1 && \
 	conda clean -a -y
 
