@@ -16,6 +16,7 @@ import torch.nn as nn
 from logzero import logger
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+from transformers import AdamW
 
 from deepxml.data_utils import MixUp
 from deepxml.evaluation import get_n_5, get_p_5
@@ -296,7 +297,7 @@ class TransformerXML(Model):
                 "weight_decay": 0.0,
             },
         ]
-        self.optimizer = DenseSparseAdam(param_groups, **kwargs)
+        self.optimizer = AdamW(param_groups, **kwargs)
         # self.model, self.optimizer = amp.initialize(self.model, self.optimizer)
         # self.model = nn.DataParallel(self.model, device_ids=self.device_ids)
 
