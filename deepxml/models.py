@@ -277,6 +277,30 @@ class TransformerXML(Model):
             self.load_model()
 
 
+    def get_optimizer(self, **kwargs):
+        no_decay = ["bias", "LayerNorm.weight"]
+        param_groups = [
+            {
+                "params": [
+                    p
+                    for n, p in self.model.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 0.9,
+            },
+            {
+                "params": [
+                    p for n, p in self.model.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 0.0,
+            },
+        ]
+        self.optimizer = DenseSparseAdam(param_groups, **kwargs)
+        # self.model, self.optimizer = amp.initialize(self.model, self.optimizer)
+        # self.model = nn.DataParallel(self.model, device_ids=self.device_ids)
+
+
     def train_step(self, train_x: torch.Tensor, attention_mask: torch.Tensor,
                    train_y: torch.Tensor):
         train_x = train_x.cuda()
