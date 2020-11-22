@@ -75,7 +75,8 @@ class Model(object):
         self.optimizer = None
 
         if load_model and os.path.exists(model_path):
-           self.load_model()
+            logger.info('Load model...')
+            self.load_model()
 
     def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
         train_x = train_x.cuda()
