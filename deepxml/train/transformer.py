@@ -120,6 +120,7 @@ def transformer_eval(
         model_cnf["model"]["pretrained"], num_labels=num_labels
     )
 
+    model_cnf['model'].pop('load_model', None)
     model = TransformerXML(
         model_path, network, load_model=True, **data_cnf["model"], **model_cnf["model"]
     )
