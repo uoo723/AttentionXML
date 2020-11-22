@@ -79,7 +79,7 @@ def transformer_train(
             param.requires_grad = False
 
     model = TransformerXML(
-        model_path, network, **data_cnf["model"], **model_cnf["model"]
+        network, model_path, **data_cnf["model"], **model_cnf["model"]
     )
 
     if not dry_run:
@@ -122,7 +122,7 @@ def transformer_eval(
 
     model_cnf['model'].pop('load_model', None)
     model = TransformerXML(
-        model_path, network, load_model=True, **data_cnf["model"], **model_cnf["model"]
+        network, model_path, load_model=True, **data_cnf["model"], **model_cnf["model"]
     )
 
     scores, labels = model.predict(test_loader, k=model_cnf["predict"].get("k", 100))

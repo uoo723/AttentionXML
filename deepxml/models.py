@@ -35,13 +35,17 @@ class Model(object):
     def __init__(self, network, model_path, gradient_clip_value=5.0, device_ids=None,
                  load_model=False, pos_weight=None, loss_name='bce', gamma=2.0,
                  freq=None, mixup_opt=None, **kwargs):
-        self.mixup_c = None
+        self.mixup_fn = None
         if mixup_opt is not None:
             logger.info('Mixup Enabled')
             logger.info(mixup_opt)
-            self.mixup_c = MixUp(**mixup_opt)
+            self.mixup_fn = MixUp(**mixup_opt)
 
-        self.model = nn.DataParallel(network(**kwargs).cuda(), device_ids=device_ids)
+        if type(network) == type:
+            self.model = nn.DataParallel(network(**kwargs).cuda(), device_ids=device_ids)
+        else:
+            self.model = nn.DataParallel(network.cuda(), device_ids=device_ids)
+
         # self.model = network(**kwargs).cuda()
         self.device_ids = device_ids
 
@@ -80,9 +84,9 @@ class Model(object):
         self.optimizer.zero_grad()
         self.model.train()
 
-        if self.mixup_c is not None:
+        if self.mixup_fn is not None:
             emb, lengths, masks = self.model(train_x, return_emb=True)
-            emb, train_y = self.mixup_c(emb, train_y)
+            emb, train_y = self.mixup_fn(emb, train_y)
             scores = self.model((emb, lengths, masks), pass_emb=True)
         else:
             scores = self.model(train_x)
@@ -258,26 +262,6 @@ class XMLModel(Model):
 
 
 class TransformerXML(Model):
-    def __init__(self, model_path, model, gradient_clip_value=5.0, device_ids=None,
-                 load_model=False, **kwargs):
-        if not isinstance(model, nn.DataParallel):
-            self.model = nn.DataParallel(model.cuda(), device_ids=device_ids)
-        else:
-            self.model = model
-
-        self.model_path = model_path
-        self.state = {}
-
-        self.loss_fn = nn.BCEWithLogitsLoss()
-
-        os.makedirs(os.path.split(self.model_path)[0], exist_ok=True)
-        self.gradient_clip_value, self.gradient_norm_queue = gradient_clip_value, deque([np.inf], maxlen=5)
-        self.optimizer = None
-
-        if load_model and os.path.exists(model_path):
-            self.load_model()
-
-
     def get_optimizer(self, **kwargs):
         no_decay = ["bias", "LayerNorm.weight"]
         param_groups = [
