@@ -92,6 +92,7 @@ def default_eval(
     logger.info(F'Size of Test Set: {len(test_x):,}')
 
     logger.info('Predicting')
+    model_cnf['model'].pop('load_model', None)
     if 'cluster' not in model_cnf:
         test_loader = DataLoader(
             MultiLabelDataset(test_x),
