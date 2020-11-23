@@ -13,7 +13,7 @@ RUN conda install -y python=3.8 conda setuptools && \
 	conda clean -a -y
 
 RUN apt update && \
-	apt install -y build-essential && \
+	apt install -y build-essential git && \
 	rm -rf /var/lib/apt/lists/*
 
 RUN pip install --ignore-installed -r requirements.txt --no-cache-dir
