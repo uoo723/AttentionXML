@@ -39,6 +39,9 @@ class Model(object):
         if mixup_opt is not None:
             logger.info('Mixup Enabled')
             logger.info(mixup_opt)
+            self.mixup_layer = mixup_opt.pop('layer', 'emb')
+            if self.mixup_layer not in ['emb', 'hidden']:
+                raise ValueError(f'mixup_layer {self.mixup_layer} is invalid [`emb`, `hidden`]')
             self.mixup_fn = MixUp(**mixup_opt)
 
         if type(network) == type:
@@ -86,9 +89,14 @@ class Model(object):
         self.model.train()
 
         if self.mixup_fn is not None:
-            emb, lengths, masks = self.model(train_x, return_emb=True)
-            emb, train_y = self.mixup_fn(emb, train_y)
-            scores = self.model((emb, lengths, masks), pass_emb=True)
+            if self.mixup_layer == 'emb':
+                emb, lengths, masks = self.model(train_x, return_emb=True)
+                emb, train_y = self.mixup_fn(emb, train_y)
+                scores = self.model((emb, lengths, masks), pass_emb=True)
+            else:
+                hidden = self.model(train_x, return_hidden=True)
+                hidden, train_y = self.mixup_fn(hidden, train_y)
+                scores = self.model(hidden, pass_hidden=True)
         else:
             scores = self.model(train_x)
 

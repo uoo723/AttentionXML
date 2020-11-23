@@ -38,20 +38,38 @@ class AttentionRNN(Network):
         self.attention = MLAttention(labels_num, hidden_size * 2)
         self.linear = MLLinear([hidden_size * 2] + linear_size, 1)
 
-    def forward(self, inputs, return_emb=False, pass_emb=False, **kwargs):
+    def forward(self, inputs, return_emb=False, pass_emb=False,
+                return_hidden=False, pass_hidden=False, **kwargs):
         if return_emb and pass_emb:
             raise ValueError("`return_emb` and `pass_emb` both cannot be True")
 
-        if not pass_emb:
+        if return_hidden and pass_hidden:
+            raise ValueError("`return_hidden` and `pass_hidden` both cannot be True")
+
+        if return_emb and return_hidden:
+            raise ValueError("`return_emb` and `return_hidden` both cannot be True")
+
+        if not pass_emb and not pass_hidden:
             emb_out, lengths, masks = self.emb(inputs, **kwargs)
-        else:
+        elif not pass_hidden:
             emb_out, lengths, masks = inputs
+        else:
+            emb_out, lengths, masks = None, None, None
 
         if return_emb:
             return emb_out, lengths, masks
 
-        emb_out, masks = emb_out[:, :lengths.max()], masks[:, :lengths.max()]
-        rnn_out = self.lstm(emb_out, lengths)       # N, L, hidden_size * 2
+        if emb_out is not None:
+            emb_out, masks = emb_out[:, :lengths.max()], masks[:, :lengths.max()]
+
+        if not pass_hidden:
+            rnn_out = self.lstm(emb_out, lengths)       # N, L, hidden_size * 2
+        else:
+            rnn_out = inputs
+
+        if return_hidden:
+            return rnn_out
+
         attn_out = self.attention(rnn_out, masks)   # N, labels_num, hidden_size * 2
 
         return self.linear(attn_out)
