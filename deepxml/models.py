@@ -94,9 +94,9 @@ class Model(object):
                 emb, train_y = self.mixup_fn(emb, train_y)
                 scores = self.model((emb, lengths, masks), pass_emb=True)
             else:
-                hidden = self.model(train_x, return_hidden=True)
+                hidden, lengths, masks = self.model(train_x, return_hidden=True)
                 hidden, train_y = self.mixup_fn(hidden, train_y)
-                scores = self.model(hidden, pass_hidden=True)
+                scores = self.model((hidden, lengths, masks), pass_hidden=True)
         else:
             scores = self.model(train_x)
 

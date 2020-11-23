@@ -65,10 +65,10 @@ class AttentionRNN(Network):
         if not pass_hidden:
             rnn_out = self.lstm(emb_out, lengths)       # N, L, hidden_size * 2
         else:
-            rnn_out = inputs
+            rnn_out, lengths, masks = inputs
 
         if return_hidden:
-            return rnn_out
+            return rnn_out, lengths, masks
 
         attn_out = self.attention(rnn_out, masks)   # N, labels_num, hidden_size * 2
 
