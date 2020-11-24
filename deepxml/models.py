@@ -129,7 +129,7 @@ class Model(object):
 
     def train(self, train_loader: DataLoader, valid_loader: DataLoader, opt_params: Optional[Mapping] = None,
               nb_epoch=100, step=100, k=5, early=50, verbose=True, swa_warmup=None,
-              inv_w=None, mlb=None, **kwargs):
+              inv_w=None, mlb=None, criterion='ndcg5', **kwargs):
         if inv_w is not None and mlb is not None:
             train_labels = mlb.inverse_transform(train_loader.dataset.data_y)
             valid_labels = mlb.inverse_transform(valid_loader.dataset.data_y)
@@ -143,8 +143,11 @@ class Model(object):
             valid_targets = None
             valid_mlb = None
 
+        if criterion not in ['p5', 'ndcg5', 'psp5']:
+            raise ValueError(f'criterion {criterion} is invalid. (p5, ndcg5, psp5)')
+
         self.get_optimizer(**({} if opt_params is None else opt_params))
-        global_step, best_n5, e = 0, 0.0, 0
+        global_step, best, e = 0, 0.0, 0
         self.save_model()
         for epoch_idx in range(nb_epoch):
             if epoch_idx == swa_warmup:
@@ -170,9 +173,17 @@ class Model(object):
                                             valid_mlb)
                     else:
                         psp5 = None
-                    if n5 > best_n5:
+
+                    if criterion == 'p5':
+                        cur = p5
+                    elif criterion == 'ncdg5':
+                        cur = n5
+                    else:
+                        cur = psp5
+
+                    if cur > best:
                         self.save_model()
-                        best_n5, e = n5, 0
+                        best, e = cur, 0
                     else:
                         e += 1
                         if early is not None and e > early:
