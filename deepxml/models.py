@@ -6,6 +6,7 @@ Created on 2018/12/9
 
 """
 
+import contextlib
 import os
 from collections import deque
 from typing import Mapping, Optional, Tuple
@@ -14,16 +15,18 @@ import numpy as np
 import torch
 import torch.nn as nn
 from logzero import logger
+from sklearn.preprocessing import MultiLabelBinarizer
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import AdamW
 
 from deepxml.data_utils import MixUp
-from deepxml.evaluation import get_n_5, get_p_5
+from deepxml.evaluation import get_inv_propensity, get_n_5, get_p_5, get_psp_5
 from deepxml.losses import *
 from deepxml.modules import *
 from deepxml.optimizers import *
 
+# from apex import amp
 
 __all__ = ['Model', 'XMLModel']
 
@@ -125,7 +128,21 @@ class Model(object):
         # self.model = nn.DataParallel(self.model, device_ids=self.device_ids)
 
     def train(self, train_loader: DataLoader, valid_loader: DataLoader, opt_params: Optional[Mapping] = None,
-              nb_epoch=100, step=100, k=5, early=50, verbose=True, swa_warmup=None, **kwargs):
+              nb_epoch=100, step=100, k=5, early=50, verbose=True, swa_warmup=None,
+              inv_w=None, mlb=None, **kwargs):
+        if inv_w is not None and mlb is not None:
+            train_labels = mlb.inverse_transform(train_loader.dataset.data_y)
+            valid_labels = mlb.inverse_transform(valid_loader.dataset.data_y)
+            valid_mlb = MultiLabelBinarizer(sparse_output=True).fit(valid_labels)
+            valid_targets = valid_mlb.transform(valid_labels)
+            with contextlib.redirect_stderr(None):
+                inv_w = get_inv_propensity(
+                    valid_mlb.transform(train_labels),
+                    inv_w.get('a', 0.55), inv_w.get('b', 1.5))
+        else:
+            valid_targets = None
+            valid_mlb = None
+
         self.get_optimizer(**({} if opt_params is None else opt_params))
         global_step, best_n5, e = 0, 0.0, 0
         self.save_model()
@@ -147,6 +164,12 @@ class Model(object):
                     labels = np.concatenate(labels)
                     targets = valid_loader.dataset.data_y
                     p5, n5 = get_p_5(labels, targets), get_n_5(labels, targets)
+                    if inv_w is not None and mlb is not None:
+                        with contextlib.redirect_stderr(None):
+                            psp5 = get_psp_5(mlb.classes_[labels], valid_targets, inv_w,
+                                            valid_mlb)
+                    else:
+                        psp5 = None
                     if n5 > best_n5:
                         self.save_model()
                         best_n5, e = n5, 0
@@ -157,7 +180,8 @@ class Model(object):
                     self.swap_swa_params()
                     if verbose:
                         logger.info(F'{epoch_idx} {i * train_loader.batch_size} train loss: {round(loss, 5)} '
-                                    F'P@5: {round(p5, 5)} nDCG@5: {round(n5, 5)} early stop: {e}')
+                                    F'P@5: {round(p5, 5)} nDCG@5: {round(n5, 5)} PSP@5: {round(psp5, 5)} '
+                                    F'early stop: {e}')
 
     def predict(self, data_loader: DataLoader, k=100, desc='Predict', **kwargs):
         self.load_model()

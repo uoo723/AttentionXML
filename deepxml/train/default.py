@@ -68,7 +68,7 @@ def default_train(
             freq=freq, **data_cnf['model'], **model_cnf['model'])
 
         if not dry_run:
-            model.train(train_loader, valid_loader, **model_cnf['train'])
+            model.train(train_loader, valid_loader, mlb=mlb, **model_cnf['train'])
         else:
             model.save_model()
 
