@@ -83,7 +83,7 @@ def transformer_train(
     )
 
     if not dry_run:
-        model.train(train_loader, valid_loader, **model_cnf["train"])
+        model.train(train_loader, valid_loader, mlb=mlb, **model_cnf["train"])
 
     log_config(data_cnf_path, model_cnf_path, dry_run)
 
