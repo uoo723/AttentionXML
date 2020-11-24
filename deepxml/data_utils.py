@@ -210,7 +210,7 @@ def mixup(x: torch.Tensor, lamda: int, indices: Iterable[int]):
 
 
 class MixUp:
-    def __init__(self, alpha=0.2):
+    def __init__(self, alpha=0.4):
         self.m = torch.distributions.Beta(alpha, alpha)
 
     def __call__(self, train_x: torch.Tensor, train_y: torch.Tensor = None):

@@ -39,7 +39,9 @@ class Model(object):
         if mixup_opt is not None:
             logger.info('Mixup Enabled')
             logger.info(mixup_opt)
+            self.mixup_opt = mixup_opt.copy()
             self.mixup_layer = mixup_opt.pop('layer', 'emb')
+            self.mixup_warmup = mixup_opt.pop('warmup', 0)
             if self.mixup_layer not in ['emb', 'hidden']:
                 raise ValueError(f'mixup_layer {self.mixup_layer} is invalid [`emb`, `hidden`]')
             self.mixup_fn = MixUp(**mixup_opt)
@@ -81,14 +83,14 @@ class Model(object):
             logger.info('Load model...')
             self.load_model()
 
-    def train_step(self, train_x: torch.Tensor, train_y: torch.Tensor):
+    def train_step(self, epoch: int, train_x: torch.Tensor, train_y: torch.Tensor):
         train_x = train_x.cuda()
         train_y = train_y.cuda()
 
         self.optimizer.zero_grad()
         self.model.train()
 
-        if self.mixup_fn is not None:
+        if self.mixup_fn is not None and epoch >= self.mixup_warmup:
             if self.mixup_layer == 'emb':
                 emb, lengths, masks = self.model(train_x, return_emb=True)
                 emb, train_y = self.mixup_fn(emb, train_y)
@@ -132,7 +134,7 @@ class Model(object):
                 self.swa_init()
             for i, train_inputs in enumerate(train_loader, 1):
                 global_step += 1
-                loss = self.train_step(*train_inputs)
+                loss = self.train_step(epoch_idx, *train_inputs)
                 if global_step % step == 0:
                     self.swa_step()
                     self.swap_swa_params()
@@ -232,7 +234,8 @@ class XMLModel(Model):
         if load_model:
             self.load_model()
 
-    def train_step(self, train_x: Tuple[torch.Tensor, torch.Tensor], train_y: torch.Tensor):
+    def train_step(self, epoch: int, train_x: Tuple[torch.Tensor, torch.Tensor],
+                   train_y: torch.Tensor):
         self.optimizer.zero_grad()
         train_x, candidates = train_x
         self.model.train()
@@ -295,8 +298,8 @@ class TransformerXML(Model):
         # self.model = nn.DataParallel(self.model, device_ids=self.device_ids)
 
 
-    def train_step(self, train_x: torch.Tensor, attention_mask: torch.Tensor,
-                   train_y: torch.Tensor):
+    def train_step(self, epoch: int, train_x: torch.Tensor,
+                   attention_mask: torch.Tensor, train_y: torch.Tensor):
         train_x = train_x.cuda()
         attention_mask = attention_mask.cuda()
         train_y = train_y.cuda()
