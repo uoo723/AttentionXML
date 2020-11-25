@@ -176,7 +176,7 @@ class Model(object):
 
                     if criterion == 'p5':
                         cur = p5
-                    elif criterion == 'ncdg5':
+                    elif criterion == 'ndcg5':
                         cur = n5
                     else:
                         cur = psp5
