@@ -18,7 +18,7 @@ from logzero import logger
 from sklearn.preprocessing import MultiLabelBinarizer
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from transformers import AdamW
+from transformers import AdamW, get_linear_schedule_with_warmup
 
 from deepxml.data_utils import MixUp
 from deepxml.evaluation import get_inv_propensity, get_n_5, get_p_5, get_psp_5
@@ -130,6 +130,9 @@ class Model(object):
     def train(self, train_loader: DataLoader, valid_loader: DataLoader, opt_params: Optional[Mapping] = None,
               nb_epoch=100, step=100, k=5, early=50, verbose=True, swa_warmup=None,
               inv_w=None, mlb=None, criterion='ndcg5', **kwargs):
+        self.nb_epoch = 100
+        self.n_steps = len(train_loader)
+
         if inv_w is not None and mlb is not None:
             train_labels = mlb.inverse_transform(train_loader.dataset.data_y)
             valid_labels = mlb.inverse_transform(valid_loader.dataset.data_y)
@@ -328,7 +331,16 @@ class TransformerXML(Model):
                 "weight_decay": 0.0,
             },
         ]
+        scheduler_opt = kwargs.pop('scheduler', None)
         self.optimizer = AdamW(param_groups, **kwargs)
+        self.scheduler = None
+
+        if scheduler_opt is not None:
+            num_warmup_steps = scheduler_opt.get('warmup', 5) * self.n_steps
+            num_training_steps = self.nb_epoch * self.n_steps
+            self.scheduler = get_linear_schedule_with_warmup(self.optimizer,
+                                                             num_warmup_steps,
+                                                             num_training_steps)
         # self.model, self.optimizer = amp.initialize(self.model, self.optimizer)
         # self.model = nn.DataParallel(self.model, device_ids=self.device_ids)
 
@@ -352,6 +364,10 @@ class TransformerXML(Model):
 
         loss.backward()
         self.optimizer.step()
+
+        if self.scheduler is not None:
+            self.scheduler.step()
+
         return loss.item()
 
     def predict_step(self, data_x: torch.Tensor, attention_mask: torch.Tensor, k: int):
