@@ -28,7 +28,7 @@ from deepxml.optimizers import *
 
 # from apex import amp
 
-__all__ = ['Model', 'XMLModel']
+__all__ = ['Model', 'XMLModel', 'TransformerXML']
 
 
 class Model(object):
@@ -342,7 +342,12 @@ class TransformerXML(Model):
         self.optimizer.zero_grad()
         self.model.train()
 
-        logits = self.model(train_x, attention_mask)[0]
+        if self.mixup_fn is not None and epoch >= self.mixup_warmup:
+            outputs = self.model(train_x, attention_mask, return_hidden=True)
+            hidden, train_y = self.mixup_fn(outputs[0], train_y)
+            logits = self.model(pass_hidden=True, outputs=(hidden, *outputs[1:]))
+        else:
+            logits = self.model(train_x, attention_mask)[0]
         loss = self.loss_fn(logits, train_y)
 
         loss.backward()

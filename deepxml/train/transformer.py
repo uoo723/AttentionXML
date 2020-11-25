@@ -7,14 +7,14 @@ import numpy as np
 from deepxml.data_utils import get_data, get_mlb, output_res
 from deepxml.dataset import MultiLabelDataset
 from deepxml.models import TransformerXML
+from deepxml.networks import RobertaForSeqClassification
 from logzero import logger
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-from transformers import RobertaForSequenceClassification
 
 from .utils import load_dataset, log_config, log_results
 
-MODEL_TYPE = {"roberta": RobertaForSequenceClassification}
+MODEL_TYPE = {"roberta": RobertaForSeqClassification}
 
 
 def transformer_train(
