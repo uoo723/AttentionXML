@@ -357,7 +357,7 @@ class TransformerXML(Model):
         if self.mixup_fn is not None and epoch >= self.mixup_warmup:
             outputs = self.model(train_x, attention_mask, return_hidden=True)
             hidden, train_y = self.mixup_fn(outputs[0], train_y)
-            logits = self.model(pass_hidden=True, outputs=(hidden, *outputs[1:]))
+            logits = self.model(pass_hidden=True, outputs=(hidden, *outputs[1:]))[0]
         else:
             logits = self.model(train_x, attention_mask)[0]
         loss = self.loss_fn(logits, train_y)
